@@ -33,7 +33,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddDbContext<InventoryDbContext>();
+    .AddNpgSql(builder.Configuration.GetConnectionString("PostgreSQLConnection")!);
 
 var app = builder.Build();
 
@@ -58,12 +58,33 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
-// Simple DbContext for demonstration
+// DbContext for Inventory
 public class InventoryDbContext : DbContext
 {
     public InventoryDbContext(DbContextOptions<InventoryDbContext> options) : base(options) { }
 
     public DbSet<InventoryItem> InventoryItems { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<InventoryItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProductId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Location).HasMaxLength(100);
+            entity.HasIndex(e => e.ProductId);
+        });
+
+        // Seed data
+        modelBuilder.Entity<InventoryItem>().HasData(
+            new InventoryItem { Id = 1, ProductId = "1", Quantity = 50, Location = "Warehouse A", LastUpdated = DateTime.UtcNow },
+            new InventoryItem { Id = 2, ProductId = "2", Quantity = 30, Location = "Warehouse A", LastUpdated = DateTime.UtcNow },
+            new InventoryItem { Id = 3, ProductId = "3", Quantity = 25, Location = "Warehouse B", LastUpdated = DateTime.UtcNow },
+            new InventoryItem { Id = 4, ProductId = "4", Quantity = 40, Location = "Warehouse B", LastUpdated = DateTime.UtcNow }
+        );
+    }
 }
 
 public class InventoryItem
