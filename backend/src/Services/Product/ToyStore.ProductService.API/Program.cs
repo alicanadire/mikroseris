@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using ToyStore.EventBus.Abstractions;
+using ToyStore.EventBus.RabbitMQ;
 using ToyStore.ProductService.Application.Mappings;
 using ToyStore.ProductService.Domain.Repositories;
 using ToyStore.ProductService.Infrastructure.Data;
@@ -12,7 +15,16 @@ builder.Services.AddDbContext<ProductDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Redis Configuration
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Redis")
+        ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(connectionString);
+});
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+
+// EventBus Configuration
+builder.Services.AddSingleton<IEventBus, RabbitMQEventBus>();
 
 // MediatR Configuration
 builder.Services.AddMediatR(cfg =>
@@ -23,6 +35,8 @@ builder.Services.AddAutoMapper(typeof(ProductMappingProfile));
 
 // Repository Configuration
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IProductReviewRepository, ProductReviewRepository>();
 
 // CORS Configuration
 builder.Services.AddCors(options =>
