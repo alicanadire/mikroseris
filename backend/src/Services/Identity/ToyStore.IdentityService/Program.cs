@@ -80,6 +80,44 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
+
+// Add Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "ToyStore Identity Service API",
+        Version = "v1",
+        Description = "Identity and authentication service for the ToyStore platform. Handles user registration, login, and role management.",
+        Contact = new()
+        {
+            Name = "ToyStore Development Team",
+            Email = "dev@toystore.com",
+            Url = new Uri("https://toystore.com")
+        },
+        License = new()
+        {
+            Name = "MIT License",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        }
+    });
+
+    // Include XML comments for better documentation
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+
+    // Enable annotations for better documentation
+    c.EnableAnnotations();
+
+    // Add operation filters for better examples
+    c.ExampleFilters();
+});
+
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
@@ -88,6 +126,23 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
+
+    app.UseSwagger(c =>
+    {
+        c.RouteTemplate = "swagger/{documentName}/swagger.json";
+    });
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ToyStore Identity Service API v1");
+        c.RoutePrefix = "swagger";
+        c.DocumentTitle = "ToyStore Identity Service API Documentation";
+        c.DefaultModelsExpandDepth(-1);
+        c.DefaultModelRendering(Swashbuckle.AspNetCore.SwaggerUI.ModelRendering.Model);
+        c.DisplayRequestDuration();
+        c.EnableDeepLinking();
+        c.EnableFilter();
+        c.EnableValidator();
+    });
 }
 
 app.UseStaticFiles();
