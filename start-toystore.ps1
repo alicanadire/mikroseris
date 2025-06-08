@@ -32,14 +32,19 @@ Write-Host "✓ Docker Compose file found" -ForegroundColor Green
 # Backend servislerini başlat
 Write-Host ""
 Write-Host "🚀 Starting all backend services..." -ForegroundColor Yellow
+
+$originalLocation = Get-Location
 Set-Location backend
 
 try {
     # Tüm servisleri başlat
     if ($IncludeFrontend) {
+        Write-Host "Starting all services including frontend..." -ForegroundColor Yellow
         docker-compose -f docker-compose-full.yml up -d
         Write-Host "✓ All services (including frontend) started" -ForegroundColor Green
-    } else {
+    } 
+    else {
+        Write-Host "Starting backend services only..." -ForegroundColor Yellow
         # Sadece backend servisleri (frontend hariç)
         docker-compose -f docker-compose-full.yml up -d --scale frontend=0
         Write-Host "✓ Backend services started" -ForegroundColor Green
@@ -66,7 +71,8 @@ try {
     
     if ($IncludeFrontend) {
         Write-Host "  • Frontend:           http://localhost:3000" -ForegroundColor White
-    } else {
+    } 
+    else {
         Write-Host ""
         Write-Host "💡 To start frontend separately:" -ForegroundColor Cyan
         Write-Host "   cd .." -ForegroundColor Gray
@@ -85,12 +91,11 @@ try {
         Write-Host "📝 Showing logs (Ctrl+C to exit)..." -ForegroundColor Yellow
         docker-compose -f docker-compose-full.yml logs -f
     }
-    
 }
 catch {
     Write-Host "✗ Error starting services: $_" -ForegroundColor Red
     exit 1
 }
 finally {
-    Set-Location ..
+    Set-Location $originalLocation
 }
