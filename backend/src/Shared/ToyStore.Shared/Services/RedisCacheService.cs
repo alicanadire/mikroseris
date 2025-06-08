@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System.Text.Json;
@@ -66,7 +65,7 @@ public class RedisCacheService : ICacheService
         {
             var server = _redis.GetServer(_redis.GetEndPoints().First());
             var keys = server.Keys(pattern: pattern);
-            
+
             foreach (var key in keys)
             {
                 await _database.KeyDeleteAsync(key);
