@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
+using ToyStore.EventBus.Abstractions;
+using ToyStore.EventBus.Events;
 using ToyStore.InventoryService.DTOs;
 using ToyStore.InventoryService.Models;
 using ToyStore.Shared.Models;
@@ -22,12 +24,18 @@ public class InventoryController : ControllerBase
     private readonly InventoryDbContext _context;
     private readonly ILogger<InventoryController> _logger;
     private readonly ICacheService _cacheService;
+    private readonly IEventBus _eventBus;
 
-    public InventoryController(InventoryDbContext context, ILogger<InventoryController> logger, ICacheService cacheService)
+    public InventoryController(
+        InventoryDbContext context,
+        ILogger<InventoryController> logger,
+        ICacheService cacheService,
+        IEventBus eventBus)
     {
         _context = context;
         _logger = logger;
         _cacheService = cacheService;
+        _eventBus = eventBus;
     }
 
     /// <summary>
@@ -68,7 +76,7 @@ public class InventoryController : ControllerBase
             }
 
             var dto = MapToInventoryDto(inventory);
-            
+
             // Cache for 5 minutes
             await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(5));
 
@@ -218,11 +226,21 @@ public class InventoryController : ControllerBase
             // Clear cache
             await _cacheService.RemoveAsync($"inventory_{request.ProductId}");
 
+            // Publish stock updated event
+            var stockUpdatedEvent = new StockUpdatedEvent
+            {
+                ProductId = Guid.Parse(request.ProductId),
+                NewQuantity = request.Quantity,
+                PreviousQuantity = 0,
+                UpdateReason = "Initial inventory creation"
+            };
+            await _eventBus.PublishAsync(stockUpdatedEvent);
+
             var dto = MapToInventoryDto(inventory);
 
             _logger.LogInformation("Inventory created for product {ProductId} by user {UserId}", request.ProductId, userId);
 
-            return CreatedAtAction(nameof(GetInventory), new { productId = request.ProductId }, 
+            return CreatedAtAction(nameof(GetInventory), new { productId = request.ProductId },
                 ApiResponse<InventoryDto>.SuccessResult(dto, "Inventory created successfully"));
         }
         catch (Exception ex)
@@ -314,6 +332,16 @@ public class InventoryController : ControllerBase
                 };
 
                 _context.StockMovements.Add(stockMovement);
+
+                // Publish stock updated event
+                var stockUpdatedEvent = new StockUpdatedEvent
+                {
+                    ProductId = Guid.Parse(productId),
+                    NewQuantity = request.Quantity,
+                    PreviousQuantity = previousQuantity,
+                    UpdateReason = "Inventory adjustment"
+                };
+                await _eventBus.PublishAsync(stockUpdatedEvent);
             }
 
             await _context.SaveChangesAsync();
@@ -402,6 +430,15 @@ public class InventoryController : ControllerBase
             // Clear cache
             await _cacheService.RemoveAsync($"inventory_{request.ProductId}");
 
+            // Publish stock reserved event
+            var stockReservedEvent = new StockReservedEvent
+            {
+                ProductId = Guid.Parse(request.ProductId),
+                ReservedQuantity = request.ReservedQuantity,
+                OrderId = Guid.Parse(request.OrderId)
+            };
+            await _eventBus.PublishAsync(stockReservedEvent);
+
             var dto = new StockReservationDto
             {
                 Id = reservation.Id,
@@ -414,7 +451,7 @@ public class InventoryController : ControllerBase
                 ReservedBy = reservation.ReservedBy
             };
 
-            _logger.LogInformation("Stock reserved for product {ProductId}, order {OrderId}, quantity {Quantity}", 
+            _logger.LogInformation("Stock reserved for product {ProductId}, order {OrderId}, quantity {Quantity}",
                 request.ProductId, request.OrderId, request.ReservedQuantity);
 
             return Ok(ApiResponse<StockReservationDto>.SuccessResult(dto, "Stock reserved successfully"));
@@ -557,12 +594,12 @@ public class InventoryController : ControllerBase
     private string GetInventoryStatus(InventoryItem inventory)
     {
         var availableQuantity = inventory.Quantity - inventory.ReservedQuantity;
-        
+
         if (availableQuantity <= 0)
             return "OutOfStock";
         if (availableQuantity <= inventory.ReorderLevel)
             return "LowStock";
-        
+
         return "InStock";
     }
 }
