@@ -28,7 +28,63 @@ builder.Services.AddCors(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "ToyStore Inventory Service", Version = "v1" });
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "ToyStore Inventory Service API",
+        Version = "v1",
+        Description = "Comprehensive inventory management API for the ToyStore platform. Manages stock levels, warehouse locations, and inventory tracking.",
+        Contact = new()
+        {
+            Name = "ToyStore Development Team",
+            Email = "dev@toystore.com",
+            Url = new Uri("https://toystore.com")
+        },
+        License = new()
+        {
+            Name = "MIT License",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        }
+    });
+
+    // Include XML comments for better documentation
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
+
+    // Add JWT Bearer authentication support
+    c.AddSecurityDefinition("Bearer", new()
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.\n\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\""
+    });
+
+    c.AddSecurityRequirement(new()
+    {
+        {
+            new()
+            {
+                Reference = new()
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    // Enable annotations for better documentation
+    c.EnableAnnotations();
+
+    // Add operation filters for better examples
+    c.ExampleFilters();
 });
 
 // Add health checks
@@ -40,8 +96,26 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "ToyStore Inventory Service v1"));
+    app.UseSwagger(c =>
+    {
+        c.RouteTemplate = "swagger/{documentName}/swagger.json";
+    });
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ToyStore Inventory Service API v1");
+        c.RoutePrefix = "swagger";
+        c.DocumentTitle = "ToyStore Inventory Service API Documentation";
+        c.DefaultModelsExpandDepth(-1);
+        c.DefaultModelRendering(Swashbuckle.AspNetCore.SwaggerUI.ModelRendering.Model);
+        c.DisplayRequestDuration();
+        c.EnableDeepLinking();
+        c.EnableFilter();
+        c.EnableValidator();
+        c.SupportedSubmitMethods(Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Get,
+                                Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Post,
+                                Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Put,
+                                Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Delete);
+    });
 }
 
 app.UseCors("AllowAll");
