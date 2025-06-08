@@ -1,110 +1,71 @@
 @echo off
-setlocal EnableDelayedExpansion
-
-title ToyStore Microservices Starter
-
 echo.
-echo ================================================
-echo 🎮 ToyStore Microservices Starter
-echo ================================================
+echo =========================================
+echo   🎮 ToyStore Microservices Quick Start
+echo =========================================
 echo.
 
-echo Checking Docker...
+REM Docker kontrolü
 docker info >nul 2>&1
-if errorlevel 1 (
-    echo ❌ Docker is not running!
-    echo.
-    echo Please start Docker Desktop first:
-    echo 1. Open Docker Desktop
-    echo 2. Wait for "Engine running" message
-    echo 3. Run this script again
-    echo.
-    pause
-    exit /b 1
-)
-echo ✅ Docker is running
-
-echo.
-echo Checking files...
-if not exist "backend" (
-    echo ❌ Backend folder not found!
+if %ERRORLEVEL% neq 0 (
+    echo ✗ Docker is not running. Please start Docker Desktop first!
     pause
     exit /b 1
 )
 
+echo ✓ Docker is running
+
+REM Docker Compose dosya kontrolü
 if not exist "backend\docker-compose-full.yml" (
-    echo ❌ Docker Compose file not found!
+    echo ✗ Docker Compose file not found: backend\docker-compose-full.yml
     pause
     exit /b 1
 )
-echo ✅ All files found
 
+echo ✓ Docker Compose file found
 echo.
-echo 🚀 Starting ToyStore backend services...
-echo.
+echo 🚀 Starting all backend services...
 
 cd backend
 
-echo Starting infrastructure services...
-docker-compose -f docker-compose-full.yml up -d sqlserver postgresql mongodb redis rabbitmq
+REM Backend servislerini başlat
+docker-compose -f docker-compose-full.yml up -d --scale frontend=0
 
-echo Waiting for databases to initialize...
-timeout /t 20 /nobreak >nul
-
-echo Starting application services...
-docker-compose -f docker-compose-full.yml up -d identityservice productservice orderservice userservice inventoryservice notificationservice
-
-echo Waiting for services to start...
-timeout /t 15 /nobreak >nul
-
-echo Starting API Gateway and admin tools...
-docker-compose -f docker-compose-full.yml up -d apigateway adminer redis-commander
-
-if errorlevel 1 (
-    echo.
-    echo ❌ Failed to start some services!
-    echo Check the error messages above.
-    echo.
+if %ERRORLEVEL% neq 0 (
+    echo ✗ Error starting services
     pause
+    cd ..
     exit /b 1
 )
 
+echo ✓ Backend services started
 echo.
-echo ⏳ Final initialization (30 seconds)...
-timeout /t 30 /nobreak >nul
+echo ⏳ Waiting for services to be ready (this may take a few minutes)...
+timeout /t 45 /nobreak >nul
 
 echo.
 echo 📊 Service Status:
 docker-compose -f docker-compose-full.yml ps
 
 echo.
-echo ================================================
-echo 🎉 ToyStore is ready!
-echo ================================================
+echo 🎉 ToyStore backend is ready!
 echo.
-echo 📱 Available Services:
-echo   🌐 API Gateway:       http://localhost:5000
-echo   📝 Swagger Docs:      http://localhost:5001/swagger
-echo   🐰 RabbitMQ Admin:    http://localhost:15672
-echo   🗄️  Database Admin:    http://localhost:8080
-echo   ⚡ Redis Admin:       http://localhost:8081
+echo 📱 Access Points:
+echo   • API Gateway:        http://localhost:5000
+echo   • Swagger UI:         http://localhost:5001/swagger
+echo   • RabbitMQ Admin:     http://localhost:15672 (admin/ToyStore123!)
+echo   • Database Admin:     http://localhost:8080
+echo   • Redis Admin:        http://localhost:8081
 echo.
-echo 🔑 Login Credentials:
-echo   Admin:     admin@toystore.com / Admin123!
-echo   Customer:  customer@toystore.com / Customer123!
-echo   RabbitMQ:  admin / ToyStore123!
+echo 💡 To start frontend separately:
+echo    cd ..
+echo    npm install ^&^& npm run dev
 echo.
-echo 💡 To start frontend:
-echo   cd ..
-echo   npm install
-echo   npm run dev
-echo.
-echo 🔧 Management:
-echo   Stop:      docker-compose -f docker-compose-full.yml down
-echo   Restart:   docker-compose -f docker-compose-full.yml restart
-echo   Logs:      docker-compose -f docker-compose-full.yml logs -f
+echo 🔧 Management Commands:
+echo   • View logs:          docker-compose -f docker-compose-full.yml logs -f
+echo   • Stop services:      docker-compose -f docker-compose-full.yml down
+echo   • Restart services:   docker-compose -f docker-compose-full.yml restart
 echo.
 
 cd ..
-
 pause
