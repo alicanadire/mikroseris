@@ -20,8 +20,17 @@ public class ProductDto
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    
+
     public CategoryDto Category { get; set; } = null!;
+}
+
+public class ProductDetailDto : ProductDto
+{
+    public List<ProductReviewDto> Reviews { get; set; } = new();
+    public decimal AverageRating { get; set; }
+    public int TotalReviews { get; set; }
+    public List<ProductDto> RelatedProducts { get; set; } = new();
+    public Dictionary<string, object> Specifications { get; set; } = new();
 }
 
 public class ProductCreateDto
