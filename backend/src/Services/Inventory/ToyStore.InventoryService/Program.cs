@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using ToyStore.EventBus.Abstractions;
+using ToyStore.EventBus.RabbitMQ;
 using ToyStore.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,8 +13,24 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<InventoryDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSQLConnection")));
 
-// Add cache service
+// Redis Configuration
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Redis")
+        ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(connectionString);
+});
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+
+// RabbitMQ EventBus Configuration
+builder.Services.Configure<RabbitMQSettings>(options =>
+{
+    options.ConnectionString = builder.Configuration.GetConnectionString("RabbitMQ")
+        ?? "amqp://guest:guest@localhost:5672/";
+    options.ExchangeName = "toystore_eventbus";
+    options.QueueName = "inventory_service_queue";
+});
+builder.Services.AddSingleton<IEventBus, RabbitMQEventBus>();
 
 // Configure CORS
 builder.Services.AddCors(options =>

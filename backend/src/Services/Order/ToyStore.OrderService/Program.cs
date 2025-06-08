@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using ToyStore.EventBus.Abstractions;
+using ToyStore.EventBus.RabbitMQ;
 using ToyStore.OrderService.Data;
 using ToyStore.Shared.Services;
 
@@ -11,8 +14,24 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<OrderDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add cache service
+// Redis Configuration
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Redis") 
+        ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(connectionString);
+});
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+
+// RabbitMQ EventBus Configuration
+builder.Services.Configure<RabbitMQSettings>(options =>
+{
+    options.ConnectionString = builder.Configuration.GetConnectionString("RabbitMQ") 
+        ?? "amqp://guest:guest@localhost:5672/";
+    options.ExchangeName = "toystore_eventbus";
+    options.QueueName = "order_service_queue";
+});
+builder.Services.AddSingleton<IEventBus, RabbitMQEventBus>();
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -83,7 +102,7 @@ builder.Services.AddSwaggerGen(c =>
 
     // Enable annotations for better documentation
     c.EnableAnnotations();
-
+    
     // Add operation filters for better examples
     c.ExampleFilters();
 });
@@ -112,9 +131,9 @@ if (app.Environment.IsDevelopment())
         c.EnableDeepLinking();
         c.EnableFilter();
         c.EnableValidator();
-        c.SupportedSubmitMethods(Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Get,
-                                Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Post,
-                                Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Put,
+        c.SupportedSubmitMethods(Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Get, 
+                                Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Post, 
+                                Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Put, 
                                 Swashbuckle.AspNetCore.SwaggerUI.SubmitMethod.Delete);
     });
 }
