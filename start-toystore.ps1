@@ -42,23 +42,23 @@ try {
         Write-Host "Starting all services including frontend..." -ForegroundColor Yellow
         docker-compose -f docker-compose-full.yml up -d
         Write-Host "✓ All services (including frontend) started" -ForegroundColor Green
-    } 
+    }
     else {
         Write-Host "Starting backend services only..." -ForegroundColor Yellow
         # Sadece backend servisleri (frontend hariç)
         docker-compose -f docker-compose-full.yml up -d --scale frontend=0
         Write-Host "✓ Backend services started" -ForegroundColor Green
     }
-    
+
     Write-Host ""
     Write-Host "⏳ Waiting for services to be ready (this may take a few minutes)..." -ForegroundColor Yellow
     Start-Sleep -Seconds 45
-    
+
     # Servis durumunu kontrol et
     Write-Host ""
     Write-Host "📊 Service Status:" -ForegroundColor Cyan
     docker-compose -f docker-compose-full.yml ps
-    
+
     Write-Host ""
     Write-Host "🎉 ToyStore is ready!" -ForegroundColor Green
     Write-Host ""
@@ -68,23 +68,23 @@ try {
     Write-Host "  • RabbitMQ Admin:     http://localhost:15672 (admin/ToyStore123!)" -ForegroundColor White
     Write-Host "  • Database Admin:     http://localhost:8080" -ForegroundColor White
     Write-Host "  • Redis Admin:        http://localhost:8081" -ForegroundColor White
-    
+
     if ($IncludeFrontend) {
         Write-Host "  • Frontend:           http://localhost:3000" -ForegroundColor White
-    } 
+    }
     else {
         Write-Host ""
         Write-Host "💡 To start frontend separately:" -ForegroundColor Cyan
         Write-Host "   cd .." -ForegroundColor Gray
         Write-Host "   npm install && npm run dev" -ForegroundColor Gray
     }
-    
+
     Write-Host ""
     Write-Host "🔧 Management Commands:" -ForegroundColor Yellow
     Write-Host "  • View logs:          docker-compose -f docker-compose-full.yml logs -f" -ForegroundColor Gray
     Write-Host "  • Stop services:      docker-compose -f docker-compose-full.yml down" -ForegroundColor Gray
     Write-Host "  • Restart services:   docker-compose -f docker-compose-full.yml restart" -ForegroundColor Gray
-    
+
     # Logları göster
     if ($ShowLogs) {
         Write-Host ""
