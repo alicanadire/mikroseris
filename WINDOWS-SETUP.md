@@ -1,285 +1,367 @@
-# 🪟 ToyStore Windows PowerShell Kurulum Rehberi
+# 🪟 Windows Setup Guide for ToyStore
 
-Bu rehber Windows bilgisayarınızda PowerShell kullanarak ToyStore microservices uygulamasını çalıştırmanız için hazırlanmıştır.
+Complete guide for setting up ToyStore on Windows systems.
 
-## 📋 Gereksinimler
+## 🚀 Quick Start (Recommended)
 
-### 1. Docker Desktop
-
-- **İndir**: [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
-- **Kurulum**: Normal kurulum yapın ve Docker Desktop'ı başlatın
-- **Kontrol**: PowerShell'de `docker --version` çalıştırın
-
-### 2. PowerShell (Zaten Windows'ta var)
-
-- Windows PowerShell 5.1+ veya PowerShell 7+
-- **Kontrol**: `$PSVersionTable.PSVersion`
-
-## 🚀 Hızlı Başlatma (1-Click)
-
-### Adım 1: Projeyi İndirin
+### Option 1: PowerShell (Easiest)
 
 ```powershell
-# GitHub'dan projeyi indirin veya ZIP olarak çıkarın
-cd C:\ToyStore  # Projenin bulunduğu klasör
-```
-
-### Adım 2: Docker Desktop'ı Başlatın
-
-- Docker Desktop uygulamasını açın
-- "Engine running" yazısını bekleyin
-
-### Adım 3: Tek Komutla Başlatın
-
-```powershell
-# Backend + Frontend dahil her şeyi başlat
-.\start-toystore.ps1 -IncludeFrontend
-
-# Veya sadece backend
+# Open PowerShell as Administrator
 .\start-toystore.ps1
 ```
 
-**🎉 Bu kadar! 2-3 dakika sonra her şey hazır olacak.**
+### Option 2: Batch File
 
-## 📊 Servis Erişim Noktaları
-
-Başlatma tamamlandıktan sonra:
-
-### 🌐 Web Arayüzleri
-
-```
-Frontend (React):        http://localhost:3000
-API Gateway:              http://localhost:5000
-RabbitMQ Yönetim:         http://localhost:15672
-Veritabanı Yönetimi:      http://localhost:8080
-Redis Yönetimi:           http://localhost:8081
+```cmd
+# Open Command Prompt
+start-toystore.bat
 ```
 
-### 🔑 Giriş Bilgileri
-
-```
-RabbitMQ:     admin / ToyStore123!
-Veritabanı:   sa / ToyStore123!
-Redis:        (şifre: ToyStore123!)
-```
-
-### 🎮 Test Kullanıcıları
-
-```
-Admin:        admin@toystore.com / Admin123!
-Müşteri:      customer@toystore.com / Customer123!
-```
-
-## 🛠️ Yönetim Komutları
-
-### PowerShell Komutları
+### Option 3: Simple Start
 
 ```powershell
-# Durumu kontrol et
+# For minimal setup
+.\start-simple.ps1
+```
+
+## 📋 Prerequisites
+
+### Required Software
+
+1. **Docker Desktop**
+
+   - Download: https://www.docker.com/products/docker-desktop
+   - Make sure it's running before starting ToyStore
+   - Minimum 4GB RAM allocated to Docker
+
+2. **Node.js 18+**
+
+   - Download: https://nodejs.org/
+   - Verify: `node --version` should show v18 or higher
+
+3. **Git** (Optional, for cloning)
+   - Download: https://git-scm.com/download/win
+
+### Optional (for development)
+
+- **.NET 8 SDK**: https://dotnet.microsoft.com/download
+- **Visual Studio 2022**: https://visualstudio.microsoft.com/
+- **SQL Server Management Studio**: https://docs.microsoft.com/en-us/sql/ssms/
+
+## 🔧 Detailed Setup Steps
+
+### Step 1: Prepare Environment
+
+1. **Install Docker Desktop**
+
+   ```cmd
+   # After installation, make sure Docker is running
+   docker --version
+   docker-compose --version
+   ```
+
+2. **Install Node.js**
+
+   ```cmd
+   # Verify installation
+   node --version
+   npm --version
+   ```
+
+3. **Clone or Download Project**
+
+   ```cmd
+   # If using Git
+   git clone <repository-url>
+   cd toystore
+
+   # Or download and extract ZIP file
+   ```
+
+### Step 2: Configure Environment
+
+1. **Copy Environment File**
+
+   ```cmd
+   copy .env.example .env
+   ```
+
+2. **Edit `.env` if needed** (optional)
+   - Default settings work for local development
+   - Only change if you need custom ports
+
+### Step 3: Start Services
+
+#### Option A: Automated Start (Recommended)
+
+```powershell
+# PowerShell - starts everything automatically
+.\start-toystore.ps1
+
+# Show logs while starting
+.\start-toystore.ps1 -ShowLogs
+
+# Include frontend in Docker
+.\start-toystore.ps1 -IncludeFrontend
+```
+
+#### Option B: Manual Start
+
+```cmd
+# 1. Start backend services
+cd backend
+docker-compose -f docker-compose-full.yml up -d
+
+# 2. Wait for services (about 2 minutes)
+timeout /t 120
+
+# 3. Start frontend
+cd ..
+npm install
+npm run dev
+```
+
+## 🌐 Access Points
+
+After successful startup:
+
+- **🏠 Main Website**: http://localhost:3000
+- **👨‍💼 Admin Panel**: http://localhost:3000/admin
+- **🔗 API Gateway**: http://localhost:5000
+- **📚 API Documentation**: http://localhost:5001/swagger
+- **🐰 RabbitMQ Management**: http://localhost:15672
+  - Username: `admin`
+  - Password: `ToyStore123!`
+- **🗄️ Database Admin**: http://localhost:8080
+- **⚡ Redis Admin**: http://localhost:8081
+
+## 🛠️ Management Commands
+
+### PowerShell Commands
+
+```powershell
+# View service status
 cd backend
 docker-compose -f docker-compose-full.yml ps
 
-# Logları görüntüle
+# View logs
 docker-compose -f docker-compose-full.yml logs -f
 
-# Belirli bir servisin logları
-docker-compose -f docker-compose-full.yml logs -f productservice
-
-# Servisleri durdur
+# Stop all services
 docker-compose -f docker-compose-full.yml down
 
-# Servisleri yeniden başlat
+# Restart services
 docker-compose -f docker-compose-full.yml restart
 
-# Tamamen temizle
-docker-compose -f docker-compose-full.yml down -v
-docker system prune -f
-```
-
-### Gelişmiş Deployment Script
-
-```powershell
-# Geliştirme modu
-.\scripts\deploy.ps1 -Environment development -Action up
-
-# Production modu
-.\scripts\deploy.ps1 -Environment production -Action up
-
-# Sadece veritabanlarını başlat
-.\scripts\deploy.ps1 -Action up
-docker-compose -f docker-compose-full.yml stop identityservice productservice orderservice userservice inventoryservice notificationservice apigateway
-
-# Temizlik
-.\scripts\deploy.ps1 -Action clean
-```
-
-## 🔧 Sorun Giderme
-
-### Docker Desktop Sorunları
-
-```powershell
-# Docker'ın çalışıp çalışmadığını kontrol et
-docker info
-
-# Docker Desktop'ı yeniden başlat
-# Docker Desktop uygulamasında: Settings > Reset > Restart Docker Desktop
-```
-
-### Port Çakışması
-
-```powershell
-# Hangi uygulamanın portu kullandığını bul
-netstat -ano | findstr :5000
-netstat -ano | findstr :5001
-
-# Process'i sonlandır (PID ile)
-taskkill /PID <PID_NUMBER> /F
-```
-
-### Bellek Sorunları
-
-```powershell
-# Docker Desktop bellek ayarları
-# Docker Desktop > Settings > Resources > Advanced
-# Memory: En az 4GB, önerilen 8GB
-# CPUs: En az 2, önerilen 4+
-```
-
-### Servis Başlatma Sorunları
-
-```powershell
-# Servisleri tek tek başlat
+# Start specific service
 docker-compose -f docker-compose-full.yml up -d sqlserver
-Start-Sleep 30
-docker-compose -f docker-compose-full.yml up -d postgresql mongodb redis rabbitmq
-Start-Sleep 30
-docker-compose -f docker-compose-full.yml up -d identityservice
-Start-Sleep 15
-docker-compose -f docker-compose-full.yml up -d productservice orderservice userservice inventoryservice notificationservice
-Start-Sleep 15
-docker-compose -f docker-compose-full.yml up -d apigateway
 ```
 
-## 📁 Proje Yapısı
+### Frontend Commands
 
-```
-ToyStore/
-├── backend/                    # .NET 8 Microservices
-│   ├── src/                   # Kaynak kodları
-│   ├── scripts/               # PowerShell scriptleri
-│   ├── docker-compose-full.yml # Ana Docker Compose
-│   └── logs/                  # Servis logları
-├── src/                       # React Frontend
-├── start-toystore.ps1         # Hızlı başlatma
-├── Dockerfile.frontend        # Frontend Docker
-└── nginx.conf                 # Nginx konfigürasyonu
-```
-
-## 🔄 Geliştirme Ortamı
-
-### Frontend Geliştirme
-
-```powershell
-# Backend Docker'da, Frontend yerel
-.\start-toystore.ps1  # Backend'i başlat
-
-# Yeni PowerShell penceresi aç
+```cmd
+# Install dependencies
 npm install
-npm run dev  # Frontend http://localhost:5173'te
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
 ```
 
-### Backend Geliştirme
+## 🚨 Troubleshooting
 
-```powershell
-# Sadece veritabanlarını Docker'da başlat
-docker-compose -f docker-compose-full.yml up -d sqlserver postgresql mongodb redis rabbitmq
+### Common Issues
 
-# Visual Studio veya VS Code'da backend servislerini debug et
+#### 1. Docker Not Running
+
+**Error**: `docker: command not found`
+**Solution**:
+
+- Start Docker Desktop
+- Wait for Docker to fully initialize
+- Check Docker icon in system tray
+
+#### 2. Port Already in Use
+
+**Error**: `Port 3000 is already in use`
+**Solution**:
+
+```cmd
+# Find process using port
+netstat -ano | findstr :3000
+
+# Kill process (replace PID)
+taskkill /PID <PID> /F
+
+# Or change port in package.json
 ```
 
-## 🧪 Test Senaryoları
+#### 3. Services Not Starting
 
-### API Testleri
+**Error**: Services fail to start
+**Solution**:
 
 ```powershell
-# Health check
-Invoke-WebRequest http://localhost:5000/health
-Invoke-WebRequest http://localhost:5001/health
+# Check Docker logs
+cd backend
+docker-compose -f docker-compose-full.yml logs
 
-# Ürünleri getir
-Invoke-WebRequest http://localhost:5000/api/products
-
-# Kategorileri getir
-Invoke-WebRequest http://localhost:5000/api/categories
+# Restart Docker Desktop
+# Try again with clean start
+docker-compose -f docker-compose-full.yml down -v
+docker-compose -f docker-compose-full.yml up -d
 ```
 
-### Database Bağlantı Testleri
+#### 4. Database Connection Issues
 
-```powershell
-# SQL Server
-docker exec -it toystore-sqlserver /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ToyStore123! -Q "SELECT @@VERSION"
+**Error**: Cannot connect to database
+**Solution**:
 
-# PostgreSQL
-docker exec -it toystore-postgresql psql -U postgres -d toystore_inventory -c "SELECT version();"
+```cmd
+# Wait longer for SQL Server to start
+timeout /t 60
 
-# MongoDB
-docker exec -it toystore-mongodb mongosh --eval "db.runCommand({ping: 1})"
+# Check SQL Server health
+docker-compose -f docker-compose-full.yml logs sqlserver
+
+# Restart database services
+docker-compose -f docker-compose-full.yml restart sqlserver
 ```
 
-## 📊 Monitoring
+#### 5. Memory Issues
 
-### Real-time Monitoring
+**Error**: Docker runs out of memory
+**Solution**:
+
+- Increase Docker memory in Docker Desktop settings
+- Close other applications
+- Restart Docker Desktop
+
+### Performance Tips
+
+1. **Allocate Enough Memory**
+
+   - Docker Desktop → Settings → Resources
+   - Allocate at least 4GB RAM to Docker
+
+2. **Use SSD Storage**
+
+   - Docker volumes work better on SSD
+   - Consider moving Docker data directory to SSD
+
+3. **Close Unnecessary Applications**
+
+   - Free up RAM for Docker containers
+   - Close browser tabs and other development tools
+
+4. **Enable WSL 2 (Windows 10/11)**
+   - Better performance than Hyper-V
+   - Docker Desktop → Settings → General → Use WSL 2
+
+## 🔒 Firewall and Security
+
+### Windows Defender
+
+If Windows blocks Docker:
+
+1. Open Windows Defender Firewall
+2. Allow Docker Desktop through firewall
+3. Allow Node.js through firewall
+
+### Antivirus Software
+
+Some antivirus may block Docker:
+
+- Add Docker installation folder to exclusions
+- Add project folder to exclusions
+- Temporarily disable real-time protection
+
+## 🎓 Development Environment
+
+### Visual Studio Code Setup
+
+1. **Install Extensions**:
+
+   - ES7+ React/Redux/React-Native snippets
+   - Prettier - Code formatter
+   - Auto Rename Tag
+   - Bracket Pair Colorizer
+   - GitLens
+
+2. **Workspace Settings** (`.vscode/settings.json`):
+   ```json
+   {
+     "editor.formatOnSave": true,
+     "editor.defaultFormatter": "esbenp.prettier-vscode",
+     "typescript.preferences.importModuleSpecifier": "relative"
+   }
+   ```
+
+### Database Management
+
+1. **SQL Server Management Studio**
+
+   - Server: `localhost,1433`
+   - Username: `sa`
+   - Password: `ToyStore123!`
+
+2. **pgAdmin** (for PostgreSQL)
+   - Available at: http://localhost:8080
+   - Login with credentials from docker-compose
+
+## 📞 Getting Help
+
+### Check Service Status
 
 ```powershell
-# Tüm servislerin durumu
+# Quick health check
+.\start-toystore.ps1 -ShowLogs
+
+# Detailed status
+cd backend
 docker-compose -f docker-compose-full.yml ps
-
-# Resource kullanımı
-docker stats
-
-# Log takibi
-docker-compose -f docker-compose-full.yml logs -f --tail=100
 ```
 
-### Web Dashboards
+### Log Collection
 
-- **RabbitMQ**: http://localhost:15672 - Message queue monitoring
-- **Adminer**: http://localhost:8080 - Database management
-- **Redis Commander**: http://localhost:8081 - Redis monitoring
+```powershell
+# Collect all logs for troubleshooting
+cd backend
+docker-compose -f docker-compose-full.yml logs > logs.txt
+```
 
-## 🆘 Destek
+### System Information
 
-### Yaygın Sorunlar ve Çözümleri
+```cmd
+# System specs
+systeminfo | findstr /C:"Total Physical Memory"
+wmic cpu get name
 
-1. **"Docker is not running" Hatası**
+# Docker info
+docker info
+docker version
+```
 
-   - Docker Desktop'ı başlatın
-   - Windows'u yeniden başlatın
-   - Docker Desktop'ı yeniden kurun
+## 🎯 Production Deployment on Windows
 
-2. **Port Kullanımda Hatası**
+### IIS Deployment
 
-   - `netstat -ano | findstr :5000` ile port kontrolü yapın
-   - Çakışan uygulamayı kapatın
+1. Build frontend: `npm run build`
+2. Copy `dist` folder to IIS wwwroot
+3. Configure reverse proxy for API calls
 
-3. **Yavaş Başlatma**
+### Windows Service
 
-   - Docker Desktop'a daha fazla RAM verin (8GB+)
-   - SSD kullanın
-   - Windows Defender'ı Docker klasörü için hariç tutun
-
-4. **"Service Unhealthy" Hatası**
-   - Logları kontrol edin: `docker-compose logs [service-name]`
-   - Servisi yeniden başlatın: `docker-compose restart [service-name]`
-
-### İletişim
-
-Sorun yaşarsanız:
-
-- Logları kontrol edin: `docker-compose -f docker-compose-full.yml logs`
-- GitHub Issues'da sorun bildirin
-- Proje dokümantasyonunu inceleyin
+1. Use PM2 or Windows Service wrapper
+2. Configure automatic startup
+3. Set up monitoring and logging
 
 ---
 
-**🎮 ToyStore'u Windows'ta başarıyla çalıştırdınız! Eğlenceli geliştirmeler! 🚀**
+**💡 Tip**: Keep Docker Desktop running in the background for best performance. The startup scripts handle everything else automatically!
