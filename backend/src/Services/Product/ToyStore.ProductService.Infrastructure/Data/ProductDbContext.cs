@@ -30,13 +30,13 @@ public class ProductDbContext : DbContext
             entity.Property(e => e.Brand).HasMaxLength(100);
             entity.Property(e => e.AgeRange).HasMaxLength(50);
             entity.Property(e => e.Rating).HasColumnType("decimal(3,2)");
-            
+
             // Store lists as JSON
             entity.Property(e => e.ImageUrls)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
-                    
+
             entity.Property(e => e.Tags)
                 .HasConversion(
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
@@ -213,8 +213,8 @@ public class ProductDbContext : DbContext
                 StockQuantity = 25,
                 Rating = 4.8m,
                 ReviewCount = 142,
-                ImageUrls = JsonSerializer.Serialize(new List<string> { "/images/products/superhero-set-1.jpg", "/images/products/superhero-set-2.jpg" }),
-                Tags = JsonSerializer.Serialize(new List<string> { "superhero", "action", "collectible" }),
+                ImageUrls = new List<string> { "/images/products/superhero-set-1.jpg", "/images/products/superhero-set-2.jpg" },
+                Tags = new List<string> { "superhero", "action", "collectible" },
                 IsFeatured = true,
                 IsActive = true,
                 CategoryId = categoryIds[0],
@@ -233,8 +233,8 @@ public class ProductDbContext : DbContext
                 StockQuantity = 12,
                 Rating = 4.9m,
                 ReviewCount = 89,
-                ImageUrls = JsonSerializer.Serialize(new List<string> { "/images/products/castle-set-1.jpg", "/images/products/castle-set-2.jpg" }),
-                Tags = JsonSerializer.Serialize(new List<string> { "building", "castle", "medieval" }),
+                ImageUrls = new List<string> { "/images/products/castle-set-1.jpg", "/images/products/castle-set-2.jpg" },
+                Tags = new List<string> { "building", "castle", "medieval" },
                 IsFeatured = true,
                 IsActive = true,
                 CategoryId = categoryIds[1],
