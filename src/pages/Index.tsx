@@ -45,6 +45,42 @@ const Index = () => {
       setCategories(categoriesData);
     } catch (error) {
       console.error("Failed to load homepage data:", error);
+      // Set fallback data to prevent empty UI
+      setCategories([
+        {
+          id: "1",
+          name: "Action Figures",
+          slug: "action-figures",
+          description: "",
+          imageUrl: "",
+          sortOrder: 1,
+          isActive: true,
+          createdAt: "",
+          updatedAt: "",
+        },
+        {
+          id: "2",
+          name: "Building Blocks",
+          slug: "building-blocks",
+          description: "",
+          imageUrl: "",
+          sortOrder: 2,
+          isActive: true,
+          createdAt: "",
+          updatedAt: "",
+        },
+        {
+          id: "3",
+          name: "Educational Toys",
+          slug: "educational-toys",
+          description: "",
+          imageUrl: "",
+          sortOrder: 3,
+          isActive: true,
+          createdAt: "",
+          updatedAt: "",
+        },
+      ]);
     } finally {
       setLoading(false);
     }

@@ -54,6 +54,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import BackendStatus from "@/components/BackendStatus";
 import { Product, Category, Order, User } from "@/types";
 import ApiClient from "@/lib/api";
 
@@ -251,11 +252,12 @@ const Admin = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
             <TabsTrigger value="customers">Customers</TabsTrigger>
+            <TabsTrigger value="system">System</TabsTrigger>
           </TabsList>
 
           {/* Dashboard Tab */}
@@ -744,6 +746,60 @@ const Admin = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* System Tab */}
+          <TabsContent value="system" className="space-y-6">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  System Status
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Monitor the health and status of all microservices
+                </p>
+              </div>
+
+              <BackendStatus />
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>System Information</CardTitle>
+                  <CardDescription>
+                    Backend architecture details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="font-semibold mb-3">
+                        Microservices Architecture
+                      </h3>
+                      <ul className="space-y-2 text-sm">
+                        <li>✅ API Gateway (Ocelot)</li>
+                        <li>✅ Identity Service (IdentityServer4)</li>
+                        <li>✅ Product Service (Clean Architecture + CQRS)</li>
+                        <li>✅ Order Service</li>
+                        <li>✅ User Service</li>
+                        <li>✅ Inventory Service (PostgreSQL)</li>
+                        <li>✅ Notification Service (MongoDB)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-3">Infrastructure</h3>
+                      <ul className="space-y-2 text-sm">
+                        <li>🗄️ SQL Server (Primary DB)</li>
+                        <li>🐘 PostgreSQL (Inventory)</li>
+                        <li>🍃 MongoDB (Notifications)</li>
+                        <li>⚡ Redis (Caching)</li>
+                        <li>🐰 RabbitMQ (Message Queue)</li>
+                        <li>🐳 Docker Compose</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

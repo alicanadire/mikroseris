@@ -110,6 +110,9 @@ export interface PaginatedResponse<T> {
 }
 
 export interface ProductFilters {
+  page?: number;
+  pageSize?: number;
+  searchTerm?: string;
   category?: string;
   minPrice?: number;
   maxPrice?: number;

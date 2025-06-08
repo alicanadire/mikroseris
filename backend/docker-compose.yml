@@ -1,0 +1,249 @@
+version: "3.8"
+
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: toystore-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=ToyStore123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - toystore-network
+
+  # PostgreSQL Database (Additional Relational DB)
+  postgresql:
+    image: postgres:15
+    container_name: toystore-postgresql
+    environment:
+      - POSTGRES_DB=toystore_inventory
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=ToyStore123!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    networks:
+      - toystore-network
+
+  # MongoDB (NoSQL Database)
+  mongodb:
+    image: mongo:7.0
+    container_name: toystore-mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=ToyStore123!
+      - MONGO_INITDB_DATABASE=toystore_notifications
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - toystore-network
+
+  # Redis Cache
+  redis:
+    image: redis:7.2-alpine
+    container_name: toystore-redis
+    command: redis-server --requirepass ToyStore123!
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - toystore-network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: toystore-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=ToyStore123!
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - toystore-network
+
+  # Identity Service (IdentityServer4)
+  identityservice:
+    build:
+      context: .
+      dockerfile: src/Services/Identity/ToyStore.IdentityService/Dockerfile
+    container_name: toystore-identityservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreIdentity;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true
+      - Redis__ConnectionString=toystore-redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@toystore-rabbitmq:5672/
+    ports:
+      - "5004:80"
+    depends_on:
+      - sqlserver
+      - redis
+      - rabbitmq
+    networks:
+      - toystore-network
+
+  # Product Service (Clean Architecture + CQRS)
+  productservice:
+    build:
+      context: .
+      dockerfile: src/Services/Product/ToyStore.ProductService.API/Dockerfile
+    container_name: toystore-productservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreProducts;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true
+      - Redis__ConnectionString=toystore-redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@toystore-rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+    ports:
+      - "5001:80"
+    depends_on:
+      - sqlserver
+      - redis
+      - rabbitmq
+      - identityservice
+    networks:
+      - toystore-network
+
+  # Order Service
+  orderservice:
+    build:
+      context: .
+      dockerfile: src/Services/Order/ToyStore.OrderService/Dockerfile
+    container_name: toystore-orderservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreOrders;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true
+      - Redis__ConnectionString=toystore-redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@toystore-rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+    ports:
+      - "5002:80"
+    depends_on:
+      - sqlserver
+      - redis
+      - rabbitmq
+      - identityservice
+    networks:
+      - toystore-network
+
+  # User Service
+  userservice:
+    build:
+      context: .
+      dockerfile: src/Services/User/ToyStore.UserService/Dockerfile
+    container_name: toystore-userservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreUsers;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true
+      - Redis__ConnectionString=toystore-redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@toystore-rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+    ports:
+      - "5003:80"
+    depends_on:
+      - sqlserver
+      - redis
+      - rabbitmq
+      - identityservice
+    networks:
+      - toystore-network
+
+  # Inventory Service (PostgreSQL)
+  inventoryservice:
+    build:
+      context: .
+      dockerfile: src/Services/Inventory/ToyStore.InventoryService/Dockerfile
+    container_name: toystore-inventoryservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Host=postgresql;Database=toystore_inventory;Username=postgres;Password=ToyStore123!
+      - Redis__ConnectionString=toystore-redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@toystore-rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+    ports:
+      - "5005:80"
+    depends_on:
+      - postgresql
+      - redis
+      - rabbitmq
+      - identityservice
+    networks:
+      - toystore-network
+
+  # Notification Service (MongoDB)
+  notificationservice:
+    build:
+      context: .
+      dockerfile: src/Services/Notification/ToyStore.NotificationService/Dockerfile
+    container_name: toystore-notificationservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - MongoDB__ConnectionString=mongodb://admin:ToyStore123!@toystore-mongodb:27017/toystore_notifications?authSource=admin
+      - Redis__ConnectionString=toystore-redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@toystore-rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+      - EmailSettings__SmtpServer=smtp.gmail.com
+      - EmailSettings__SmtpPort=587
+      - EmailSettings__SmtpUsername=your-email@gmail.com
+      - EmailSettings__SmtpPassword=your-app-password
+    ports:
+      - "5006:80"
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+      - identityservice
+    networks:
+      - toystore-network
+
+  # API Gateway (Ocelot)
+  apigateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/ToyStore.ApiGateway/Dockerfile
+    container_name: toystore-apigateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - Redis__ConnectionString=toystore-redis:6379,password=ToyStore123!
+      - IdentityServer__Authority=http://identityservice
+    ports:
+      - "5000:80"
+    depends_on:
+      - identityservice
+      - productservice
+      - orderservice
+      - userservice
+      - inventoryservice
+      - notificationservice
+      - redis
+    networks:
+      - toystore-network
+
+volumes:
+  sqlserver_data:
+  postgresql_data:
+  mongodb_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  toystore-network:
+    driver: bridge

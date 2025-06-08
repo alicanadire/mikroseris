@@ -24,7 +24,15 @@ export const useAuth = () => {
 };
 
 export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem("auth_token");
+  const token = localStorage.getItem("access_token");
+  if (!token) return false;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp > Date.now() / 1000;
+  } catch {
+    return false;
+  }
 };
 
 export const isAdmin = (user: User | null): boolean => {
@@ -32,15 +40,16 @@ export const isAdmin = (user: User | null): boolean => {
 };
 
 export const getAuthToken = (): string | null => {
-  return localStorage.getItem("auth_token");
+  return localStorage.getItem("access_token");
 };
 
 export const setAuthToken = (token: string): void => {
-  localStorage.setItem("auth_token", token);
+  localStorage.setItem("access_token", token);
 };
 
 export const removeAuthToken = (): void => {
-  localStorage.removeItem("auth_token");
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
   localStorage.removeItem("user_data");
 };
 
@@ -79,12 +88,13 @@ export const validateToken = async (token: string): Promise<boolean> => {
 export const getAuthCodeFlowUrl = (): string => {
   const baseUrl =
     process.env.VITE_IDENTITY_SERVER_URL || "http://localhost:5004";
-  const clientId = process.env.VITE_CLIENT_ID || "toy-store-spa";
+  const clientId = process.env.VITE_CLIENT_ID || "toystore-spa";
   const redirectUri = encodeURIComponent(
     window.location.origin + "/auth/callback",
   );
   const responseType = "code";
-  const scope = "openid profile email toy-store-api";
+  const scope =
+    "openid profile email roles toystore.products toystore.orders toystore.users";
   const state = generateRandomState();
 
   localStorage.setItem("auth_state", state);
@@ -95,7 +105,8 @@ export const getAuthCodeFlowUrl = (): string => {
     `redirect_uri=${redirectUri}&` +
     `response_type=${responseType}&` +
     `scope=${encodeURIComponent(scope)}&` +
-    `state=${state}`
+    `state=${state}&` +
+    `code_challenge_method=S256`
   );
 };
 

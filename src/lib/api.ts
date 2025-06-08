@@ -10,15 +10,10 @@ import {
   ProductFilters,
 } from "@/types";
 
-// API configuration for microservices
+// API configuration for microservices backend
 const API_CONFIG = {
-  PRODUCT_SERVICE:
-    process.env.VITE_PRODUCT_SERVICE_URL || "http://localhost:5001/api",
-  USER_SERVICE:
-    process.env.VITE_USER_SERVICE_URL || "http://localhost:5002/api",
-  ORDER_SERVICE:
-    process.env.VITE_ORDER_SERVICE_URL || "http://localhost:5003/api",
-  GATEWAY: process.env.VITE_API_GATEWAY_URL || "http://localhost:5000/api",
+  GATEWAY: process.env.VITE_API_GATEWAY_URL || 'http://localhost:5000/api',
+  IDENTITY_SERVER: process.env.VITE_IDENTITY_SERVER_URL || 'http://localhost:5004',
 };
 
 // Mock data for development (replace with actual API calls)
@@ -204,19 +199,19 @@ const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
-// API functions
+// API functions for real backend integration
 class ApiClient {
   private static baseUrl = API_CONFIG.GATEWAY;
-  private static token: string | null = localStorage.getItem("auth_token");
+  private static token: string | null = localStorage.getItem('access_token');
 
   private static async request<T>(
     endpoint: string,
-    options: RequestInit = {},
-  ): Promise<ApiResponse<T>> {
+    options: RequestInit = {}
+  ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
     const headers = {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...(this.token && { Authorization: `Bearer ${this.token}` }),
       ...options.headers,
     };
@@ -228,88 +223,128 @@ class ApiClient {
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired, redirect to login
+          this.logout();
+          window.location.href = '/login';
+          throw new Error('Authentication required');
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+
+      // Backend returns ApiResponse<T> format
+      if (data.success !== undefined) {
+        if (!data.success) {
+          throw new Error(data.message || 'API request failed');
+        }
+        return data.data;
+      }
+
       return data;
     } catch (error) {
-      console.error("API request failed:", error);
+      console.error('API request failed:', error);
       throw error;
     }
   }
+  }
 
-  // Products API
-  static async getProducts(
-    filters?: ProductFilters,
-  ): Promise<PaginatedResponse<Product>> {
-    // Mock response for development
-    await new Promise((resolve) => setTimeout(resolve, 500));
+  // Products API - Real backend integration
+  static async getProducts(filters?: ProductFilters): Promise<PaginatedResponse<Product>> {
+    const params = new URLSearchParams();
 
-    let filteredProducts = [...MOCK_PRODUCTS];
-
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.pageSize) params.append('pageSize', filters.pageSize.toString());
+    if (filters?.searchTerm) params.append('searchTerm', filters.searchTerm);
     if (filters?.category) {
-      filteredProducts = filteredProducts.filter(
-        (p) => p.category.slug === filters.category,
-      );
+      // Convert category slug to categoryId
+      const categories = await this.getCategories();
+      const category = categories.find(c => c.slug === filters.category);
+      if (category) params.append('categoryId', category.id);
     }
+    if (filters?.minPrice !== undefined) params.append('minPrice', filters.minPrice.toString());
+    if (filters?.maxPrice !== undefined) params.append('maxPrice', filters.maxPrice.toString());
+    if (filters?.brand) params.append('brand', filters.brand);
+    if (filters?.inStock !== undefined) params.append('inStock', filters.inStock.toString());
+    if (filters?.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters?.sortOrder) params.append('sortOrder', filters.sortOrder);
 
-    if (filters?.minPrice !== undefined) {
-      filteredProducts = filteredProducts.filter(
-        (p) => p.price >= filters.minPrice!,
-      );
-    }
+    const queryString = params.toString();
+    const endpoint = `/products${queryString ? `?${queryString}` : ''}`;
 
-    if (filters?.maxPrice !== undefined) {
-      filteredProducts = filteredProducts.filter(
-        (p) => p.price <= filters.maxPrice!,
-      );
-    }
-
-    if (filters?.inStock) {
-      filteredProducts = filteredProducts.filter((p) => p.inStock);
-    }
-
-    return {
-      data: filteredProducts,
-      totalCount: filteredProducts.length,
-      pageSize: 12,
-      currentPage: 1,
-      totalPages: Math.ceil(filteredProducts.length / 12),
-    };
+    return await this.request<PaginatedResponse<Product>>(endpoint);
+  }
   }
 
   static async getProduct(id: string): Promise<Product | null> {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return MOCK_PRODUCTS.find((p) => p.id === id) || null;
+    try {
+      return await this.request<Product>(`/products/${id}`);
+    } catch (error) {
+      console.error('Failed to get product:', error);
+      return null;
+    }
   }
 
   static async getCategories(): Promise<Category[]> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    return MOCK_CATEGORIES;
+    return await this.request<Category[]>('/categories');
   }
 
   static async getFeaturedProducts(): Promise<Product[]> {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    return MOCK_PRODUCTS.slice(0, 4);
+    return await this.request<Product[]>('/products/featured?count=8');
   }
 
-  // Cart API (using localStorage for demo)
+  // Cart API - Real backend integration
   static async getCart(): Promise<Cart> {
-    const cartData = localStorage.getItem("toy_store_cart");
-    if (cartData) {
-      return JSON.parse(cartData);
+    if (!this.token) {
+      // Return empty cart for unauthenticated users
+      return {
+        id: 'guest_cart',
+        items: [],
+        totalItems: 0,
+        totalPrice: 0
+      };
     }
 
-    const emptyCart: Cart = {
-      id: "cart_" + Date.now(),
-      items: [],
-      totalItems: 0,
-      totalPrice: 0,
-    };
-
-    localStorage.setItem("toy_store_cart", JSON.stringify(emptyCart));
-    return emptyCart;
+    try {
+      const cartData = await this.request<any>('/cart');
+      return {
+        id: cartData.id,
+        items: cartData.items.map((item: any) => ({
+          id: item.id,
+          product: {
+            id: item.productId,
+            name: item.productName,
+            imageUrls: [item.productImageUrl],
+            price: item.unitPrice,
+            category: { name: '', slug: '', id: '', description: '', imageUrl: '' },
+            brand: '',
+            ageRange: '',
+            inStock: true,
+            stockQuantity: 1,
+            rating: 0,
+            reviewCount: 0,
+            tags: [],
+            shortDescription: '',
+            description: '',
+            createdAt: '',
+            updatedAt: ''
+          },
+          quantity: item.quantity,
+          price: item.unitPrice
+        })),
+        totalItems: cartData.totalItems,
+        totalPrice: cartData.totalAmount
+      };
+    } catch (error) {
+      console.error('Failed to get cart:', error);
+      return {
+        id: 'error_cart',
+        items: [],
+        totalItems: 0,
+        totalPrice: 0
+      };
+    }
   }
 
   static async addToCart(
@@ -346,14 +381,29 @@ class ApiClient {
     return cart;
   }
 
-  static async updateCartItem(itemId: string, quantity: number): Promise<Cart> {
-    const cart = await this.getCart();
-    const itemIndex = cart.items.findIndex((item) => item.id === itemId);
+  static async addToCart(productId: string, quantity: number = 1): Promise<Cart> {
+    if (!this.token) {
+      throw new Error('Authentication required');
+    }
 
-    if (itemIndex >= 0) {
-      if (quantity <= 0) {
-        cart.items.splice(itemIndex, 1);
-      } else {
+    const product = await this.getProduct(productId);
+    if (!product) throw new Error('Product not found');
+
+    const addToCartData = {
+      productId: productId,
+      productName: product.name,
+      productImageUrl: product.imageUrls[0] || '',
+      quantity: quantity,
+      unitPrice: product.price
+    };
+
+    await this.request('/cart/add', {
+      method: 'POST',
+      body: JSON.stringify(addToCartData)
+    });
+
+    return await this.getCart();
+  }
         cart.items[itemIndex].quantity = quantity;
       }
     }
@@ -384,37 +434,68 @@ class ApiClient {
     return emptyCart;
   }
 
-  // Auth API
+  // Auth API - IdentityServer4 Integration
   static async login(email: string, password: string): Promise<User> {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Mock login - in real app, this would call IdentityServer4
+    // For demo purposes, simulate login with IdentityServer4
+    // In production, this would use proper OAuth2/OIDC flow
     const mockUser: User = {
-      id: "user_1",
+      id: 'user_1',
       email,
-      firstName: "John",
-      lastName: "Doe",
-      role: email.includes("admin") ? "admin" : "customer",
-      createdAt: new Date().toISOString(),
+      firstName: email.includes('admin') ? 'Admin' : 'John',
+      lastName: email.includes('admin') ? 'User' : 'Doe',
+      role: email.includes('admin') ? 'admin' : 'customer',
+      createdAt: new Date().toISOString()
     };
 
-    const mockToken = "mock_jwt_token_" + Date.now();
-    localStorage.setItem("auth_token", mockToken);
-    localStorage.setItem("user_data", JSON.stringify(mockUser));
+    // Simulate JWT token from IdentityServer4
+    const mockToken = `eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(JSON.stringify({
+      sub: mockUser.id,
+      email: mockUser.email,
+      name: `${mockUser.firstName} ${mockUser.lastName}`,
+      role: mockUser.role,
+      aud: 'toystore.api',
+      iss: API_CONFIG.IDENTITY_SERVER,
+      exp: Math.floor(Date.now() / 1000) + 3600
+    }))}.signature`;
+
+    localStorage.setItem('access_token', mockToken);
+    localStorage.setItem('user_data', JSON.stringify(mockUser));
     this.token = mockToken;
 
     return mockUser;
   }
 
   static async logout(): Promise<void> {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user_data");
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_data');
     this.token = null;
+
+    // In production, also call IdentityServer4 logout endpoint
+    // window.location.href = `${API_CONFIG.IDENTITY_SERVER}/connect/endsession`;
   }
 
   static async getCurrentUser(): Promise<User | null> {
-    const userData = localStorage.getItem("user_data");
-    return userData ? JSON.parse(userData) : null;
+    const userData = localStorage.getItem('user_data');
+    const token = localStorage.getItem('access_token');
+
+    if (!userData || !token) {
+      return null;
+    }
+
+    // Verify token hasn't expired
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp < Date.now() / 1000) {
+        this.logout();
+        return null;
+      }
+    } catch {
+      this.logout();
+      return null;
+    }
+
+    return JSON.parse(userData);
   }
 
   // Admin API
