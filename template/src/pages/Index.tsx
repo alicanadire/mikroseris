@@ -24,7 +24,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 const Index = () => {
-  const [featuredProducts, setFeaturedProducts] = useState([
+  const [featuredProducts] = useState([
     {
       id: "1",
       name: "Super Hero Action Figure",
