@@ -35,6 +35,124 @@ const Index = () => {
   }, []);
 
   const loadData = async () => {
+    // Set immediate fallback data for fast loading
+    const fallbackCategories = [
+      {
+        id: "1",
+        name: "Action Figures",
+        slug: "action-figures",
+        description: "Superhero and character action figures",
+        imageUrl: "/images/categories/action-figures.jpg",
+        sortOrder: 1,
+        isActive: true,
+        createdAt: "",
+        updatedAt: "",
+      },
+      {
+        id: "2",
+        name: "Building Blocks",
+        slug: "building-blocks",
+        description: "LEGO and other building sets",
+        imageUrl: "/images/categories/building-blocks.jpg",
+        sortOrder: 2,
+        isActive: true,
+        createdAt: "",
+        updatedAt: "",
+      },
+      {
+        id: "3",
+        name: "Educational Toys",
+        slug: "educational-toys",
+        description: "Learning and STEM toys",
+        imageUrl: "/images/categories/educational.jpg",
+        sortOrder: 3,
+        isActive: true,
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+
+    const fallbackProducts = [
+      {
+        id: "1",
+        name: "Super Hero Action Figure",
+        description: "Amazing superhero figure with movable joints",
+        shortDescription: "Amazing superhero figure",
+        price: 24.99,
+        imageUrls: ["/images/products/action-figure-1.jpg"],
+        category: fallbackCategories[0],
+        brand: "ToyStore",
+        ageRange: "4+",
+        inStock: true,
+        stockQuantity: 50,
+        rating: 4.5,
+        reviewCount: 128,
+        tags: ["superhero", "action"],
+        createdAt: "",
+        updatedAt: "",
+      },
+      {
+        id: "2",
+        name: "Building Blocks Set",
+        description: "Creative building blocks for endless fun",
+        shortDescription: "Creative building blocks",
+        price: 39.99,
+        imageUrls: ["/images/products/blocks-1.jpg"],
+        category: fallbackCategories[1],
+        brand: "ToyStore",
+        ageRange: "3+",
+        inStock: true,
+        stockQuantity: 30,
+        rating: 4.8,
+        reviewCount: 95,
+        tags: ["building", "creative"],
+        createdAt: "",
+        updatedAt: "",
+      },
+      {
+        id: "3",
+        name: "STEM Learning Kit",
+        description: "Educational toy for science and math learning",
+        shortDescription: "Educational STEM kit",
+        price: 49.99,
+        imageUrls: ["/images/products/stem-kit-1.jpg"],
+        category: fallbackCategories[2],
+        brand: "ToyStore",
+        ageRange: "6+",
+        inStock: true,
+        stockQuantity: 25,
+        rating: 4.7,
+        reviewCount: 67,
+        tags: ["educational", "STEM"],
+        createdAt: "",
+        updatedAt: "",
+      },
+      {
+        id: "4",
+        name: "Puzzle Adventure",
+        description: "Challenging puzzle for problem-solving fun",
+        shortDescription: "Challenging puzzle game",
+        price: 19.99,
+        imageUrls: ["/images/products/puzzle-1.jpg"],
+        category: fallbackCategories[2],
+        brand: "ToyStore",
+        ageRange: "5+",
+        inStock: true,
+        stockQuantity: 40,
+        rating: 4.6,
+        reviewCount: 89,
+        tags: ["puzzle", "brain"],
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+
+    // Set fallback data immediately for fast UI
+    setCategories(fallbackCategories);
+    setFeaturedProducts(fallbackProducts);
+    setLoading(false);
+
+    // Try to load real data in background
     try {
       const [productsData, categoriesData] = await Promise.all([
         ApiClient.getFeaturedProducts(),
@@ -44,45 +162,8 @@ const Index = () => {
       setFeaturedProducts(productsData);
       setCategories(categoriesData);
     } catch (error) {
-      console.error("Failed to load homepage data:", error);
-      // Set fallback data to prevent empty UI
-      setCategories([
-        {
-          id: "1",
-          name: "Action Figures",
-          slug: "action-figures",
-          description: "",
-          imageUrl: "",
-          sortOrder: 1,
-          isActive: true,
-          createdAt: "",
-          updatedAt: "",
-        },
-        {
-          id: "2",
-          name: "Building Blocks",
-          slug: "building-blocks",
-          description: "",
-          imageUrl: "",
-          sortOrder: 2,
-          isActive: true,
-          createdAt: "",
-          updatedAt: "",
-        },
-        {
-          id: "3",
-          name: "Educational Toys",
-          slug: "educational-toys",
-          description: "",
-          imageUrl: "",
-          sortOrder: 3,
-          isActive: true,
-          createdAt: "",
-          updatedAt: "",
-        },
-      ]);
-    } finally {
-      setLoading(false);
+      console.warn("Backend not available, using fallback data:", error);
+      // Fallback data is already set, so no need to do anything
     }
   };
 

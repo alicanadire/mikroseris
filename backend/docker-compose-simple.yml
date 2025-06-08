@@ -1,0 +1,134 @@
+services:
+  # SQL Server - Primary database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: toystore-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=ToyStore123!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./scripts/sql-init:/docker-entrypoint-initdb.d
+    networks:
+      - toystore-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ToyStore123! -Q 'SELECT 1'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis - Caching
+  redis:
+    image: redis:7.2-alpine
+    container_name: toystore-redis
+    command: redis-server --requirepass ToyStore123! --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - toystore-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
+  # RabbitMQ - Message broker
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: toystore-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=ToyStore123!
+      - RABBITMQ_DEFAULT_VHOST=/
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - toystore-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # PostgreSQL - Inventory database
+  postgresql:
+    image: postgres:15-alpine
+    container_name: toystore-postgresql
+    environment:
+      - POSTGRES_DB=toystore_inventory
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=ToyStore123!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./scripts/postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - toystore-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./src/ApiGateway/ToyStore.ApiGateway
+      dockerfile: Dockerfile
+    container_name: toystore-api-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    ports:
+      - "5000:80"
+    depends_on:
+      - sqlserver
+      - redis
+    networks:
+      - toystore-network
+    restart: unless-stopped
+
+  # Identity Service
+  identity-service:
+    build:
+      context: ./src/Services/Identity/ToyStore.IdentityService
+      dockerfile: Dockerfile
+    container_name: toystore-identity-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreIdentity;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true;
+    ports:
+      - "5004:80"
+    depends_on:
+      - sqlserver
+    networks:
+      - toystore-network
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
+  redis_data:
+  rabbitmq_data:
+  postgresql_data:
+
+networks:
+  toystore-network:
+    driver: bridge
