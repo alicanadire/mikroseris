@@ -220,8 +220,23 @@ public class ProductsController : ControllerBase
         [SwaggerParameter("Product unique identifier", Required = true)] Guid id,
         [FromBody, SwaggerRequestBody("Product update data", Required = true)] ProductUpdateDto productDto)
     {
-        // Implementation would be similar to create
-        return Ok();
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "system";
+
+        var command = new UpdateProductCommand
+        {
+            Id = id,
+            Product = productDto,
+            UserId = userId
+        };
+
+        var result = await _mediator.Send(command);
+
+        if (!result.Success)
+        {
+            return StatusCode(result.StatusCode, result);
+        }
+
+        return Ok(result);
     }
 
     /// <summary>
@@ -248,7 +263,21 @@ public class ProductsController : ControllerBase
     [SwaggerResponse(500, "Internal server error", typeof(ApiResponse<object>))]
     public async Task<IActionResult> DeleteProduct([SwaggerParameter("Product unique identifier", Required = true)] Guid id)
     {
-        // Implementation for delete
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "system";
+
+        var command = new DeleteProductCommand
+        {
+            Id = id,
+            UserId = userId
+        };
+
+        var result = await _mediator.Send(command);
+
+        if (!result.Success)
+        {
+            return StatusCode(result.StatusCode, result);
+        }
+
         return NoContent();
     }
 }
