@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 using ToyStore.IdentityService.Models;
+using ToyStore.IdentityService.Services;
 using ToyStore.Shared.Models;
 
 namespace ToyStore.IdentityService.Controllers;
@@ -19,15 +20,18 @@ public class AccountController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<AccountController> _logger;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
+        IJwtTokenService jwtTokenService,
         ILogger<AccountController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _jwtTokenService = jwtTokenService;
         _logger = logger;
     }
 
@@ -166,6 +170,8 @@ public class AccountController : ControllerBase
             }
 
             var roles = await _userManager.GetRolesAsync(user);
+            var token = await _jwtTokenService.GenerateTokenAsync(user, roles);
+
             var response = new UserLoginResponse
             {
                 Id = user.Id,
@@ -173,6 +179,8 @@ public class AccountController : ControllerBase
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Roles = roles.ToList(),
+                Token = token,
+                TokenExpires = DateTime.UtcNow.AddHours(1),
                 LastLoginAt = DateTime.UtcNow
             };
 
@@ -211,7 +219,7 @@ public class AccountController : ControllerBase
         try
         {
             await _signInManager.SignOutAsync();
-            
+
             _logger.LogInformation("User logged out successfully");
 
             return Ok(ApiResponse<bool>.SuccessResult(true, "Logout successful"));
@@ -377,6 +385,8 @@ public class UserLoginResponse
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public List<string> Roles { get; set; } = new();
+    public string Token { get; set; } = string.Empty;
+    public DateTime TokenExpires { get; set; }
     public DateTime LastLoginAt { get; set; }
 }
 
