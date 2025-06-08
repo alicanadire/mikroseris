@@ -1,0 +1,476 @@
+version: "3.8"
+
+# ToyStore Complete Microservices Stack
+# Tüm servisler Docker'da çalışır - lokal kurulum gerektirmez
+
+services:
+  # =============================================================================
+  # DATABASE SERVICES - Tüm veritabanları Docker'da
+  # =============================================================================
+
+  # SQL Server - Ana veritabanı (Identity, Product, Order, User)
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: toystore-sqlserver
+    hostname: sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=ToyStore123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./scripts/sql-init:/docker-entrypoint-initdb.d
+    networks:
+      - toystore-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ToyStore123! -Q 'SELECT 1'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL - Inventory Service için ek ilişkisel DB
+  postgresql:
+    image: postgres:15-alpine
+    container_name: toystore-postgresql
+    hostname: postgresql
+    environment:
+      - POSTGRES_DB=toystore_inventory
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=ToyStore123!
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./scripts/postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d toystore_inventory"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # MongoDB - NoSQL veritabanı (Notification Service)
+  mongodb:
+    image: mongo:7.0
+    container_name: toystore-mongodb
+    hostname: mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=ToyStore123!
+      - MONGO_INITDB_DATABASE=toystore_notifications
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================================================
+  # INFRASTRUCTURE SERVICES - Redis ve RabbitMQ
+  # =============================================================================
+
+  # Redis - Cache ve Session Management
+  redis:
+    image: redis:7.2-alpine
+    container_name: toystore-redis
+    hostname: redis
+    command: redis-server --requirepass ToyStore123! --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "ToyStore123!", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # RabbitMQ - Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: toystore-rabbitmq
+    hostname: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=ToyStore123!
+      - RABBITMQ_DEFAULT_VHOST=/
+    ports:
+      - "5672:5672" # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./scripts/rabbitmq-init:/etc/rabbitmq/conf.d
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================================================
+  # MICROSERVICES - .NET 8 Backend Services
+  # =============================================================================
+
+  # Identity Service - IdentityServer4 Authentication
+  identityservice:
+    build:
+      context: .
+      dockerfile: src/Services/Identity/ToyStore.IdentityService/Dockerfile
+    container_name: toystore-identityservice
+    hostname: identityservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreIdentity;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true;MultipleActiveResultSets=true
+      - Redis__ConnectionString=redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@rabbitmq:5672/
+      - Serilog__WriteTo__1__Args__path=logs/identity-service-.log
+    ports:
+      - "5004:80"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Product Service - Clean Architecture + CQRS
+  productservice:
+    build:
+      context: .
+      dockerfile: src/Services/Product/ToyStore.ProductService.API/Dockerfile
+    container_name: toystore-productservice
+    hostname: productservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreProducts;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true;MultipleActiveResultSets=true
+      - Redis__ConnectionString=redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+      - Serilog__WriteTo__1__Args__path=logs/product-service-.log
+    ports:
+      - "5001:80"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identityservice:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Order Service - Sipariş yönetimi
+  orderservice:
+    build:
+      context: .
+      dockerfile: src/Services/Order/ToyStore.OrderService/Dockerfile
+    container_name: toystore-orderservice
+    hostname: orderservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreOrders;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true;MultipleActiveResultSets=true
+      - Redis__ConnectionString=redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+      - Serilog__WriteTo__1__Args__path=logs/order-service-.log
+    ports:
+      - "5002:80"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identityservice:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # User Service - Kullanıcı yönetimi
+  userservice:
+    build:
+      context: .
+      dockerfile: src/Services/User/ToyStore.UserService/Dockerfile
+    container_name: toystore-userservice
+    hostname: userservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreUsers;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true;MultipleActiveResultSets=true
+      - Redis__ConnectionString=redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+      - Serilog__WriteTo__1__Args__path=logs/user-service-.log
+    ports:
+      - "5003:80"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identityservice:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Inventory Service - PostgreSQL kullanır
+  inventoryservice:
+    build:
+      context: .
+      dockerfile: src/Services/Inventory/ToyStore.InventoryService/Dockerfile
+    container_name: toystore-inventoryservice
+    hostname: inventoryservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Host=postgresql;Database=toystore_inventory;Username=postgres;Password=ToyStore123!
+      - Redis__ConnectionString=redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+      - Serilog__WriteTo__1__Args__path=logs/inventory-service-.log
+    ports:
+      - "5005:80"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identityservice:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Notification Service - MongoDB kullanır
+  notificationservice:
+    build:
+      context: .
+      dockerfile: src/Services/Notification/ToyStore.NotificationService/Dockerfile
+    container_name: toystore-notificationservice
+    hostname: notificationservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - MongoDB__ConnectionString=mongodb://admin:ToyStore123!@mongodb:27017/toystore_notifications?authSource=admin
+      - Redis__ConnectionString=redis:6379,password=ToyStore123!
+      - RabbitMQ__ConnectionString=amqp://admin:ToyStore123!@rabbitmq:5672/
+      - IdentityServer__Authority=http://identityservice
+      - EmailSettings__SmtpServer=smtp.gmail.com
+      - EmailSettings__SmtpPort=587
+      - EmailSettings__SmtpUsername=your-email@gmail.com
+      - EmailSettings__SmtpPassword=your-app-password
+      - Serilog__WriteTo__1__Args__path=logs/notification-service-.log
+    ports:
+      - "5006:80"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identityservice:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # API Gateway - Ocelot
+  apigateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/ToyStore.ApiGateway/Dockerfile
+    container_name: toystore-apigateway
+    hostname: apigateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - Redis__ConnectionString=redis:6379,password=ToyStore123!
+      - IdentityServer__Authority=http://identityservice
+      - Serilog__WriteTo__1__Args__path=logs/api-gateway-.log
+    ports:
+      - "5000:80"
+    depends_on:
+      identityservice:
+        condition: service_healthy
+      productservice:
+        condition: service_healthy
+      orderservice:
+        condition: service_healthy
+      userservice:
+        condition: service_healthy
+      inventoryservice:
+        condition: service_healthy
+      notificationservice:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - toystore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # =============================================================================
+  # FRONTEND SERVICE (Opsiyonel - React uygulaması)
+  # =============================================================================
+
+  # Frontend - React App (Docker'da çalıştırmak isterseniz)
+  frontend:
+    build:
+      context: ../ # Ana klasörden build et
+      dockerfile: Dockerfile.frontend
+    container_name: toystore-frontend
+    hostname: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_GATEWAY_URL=http://localhost:5000/api
+      - VITE_IDENTITY_SERVER_URL=http://localhost:5004
+    depends_on:
+      apigateway:
+        condition: service_healthy
+    networks:
+      - toystore-network
+    restart: unless-stopped
+
+  # =============================================================================
+  # MONITORING & ADMIN TOOLS
+  # =============================================================================
+
+  # Adminer - Database Administration UI
+  adminer:
+    image: adminer:latest
+    container_name: toystore-adminer
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=sqlserver
+    networks:
+      - toystore-network
+    restart: unless-stopped
+
+  # Redis Commander - Redis Management UI
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: toystore-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:ToyStore123!
+    depends_on:
+      - redis
+    networks:
+      - toystore-network
+    restart: unless-stopped
+
+# =============================================================================
+# VOLUMES - Veri persistence için
+# =============================================================================
+volumes:
+  sqlserver_data:
+    driver: local
+  postgresql_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+# =============================================================================
+# NETWORKS - Servis iletişimi için
+# =============================================================================
+networks:
+  toystore-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
