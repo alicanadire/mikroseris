@@ -11,7 +11,15 @@ public class ProductMappingProfile : Profile
         // Product mappings
         CreateMap<Product, ProductDto>()
             .ForMember(dest => dest.InStock, opt => opt.MapFrom(src => src.StockQuantity > 0));
-            
+
+        CreateMap<Product, ProductDetailDto>()
+            .ForMember(dest => dest.InStock, opt => opt.MapFrom(src => src.StockQuantity > 0))
+            .ForMember(dest => dest.Reviews, opt => opt.MapFrom(src => src.Reviews.Where(r => r.IsApproved)))
+            .ForMember(dest => dest.AverageRating, opt => opt.MapFrom(src => src.Rating))
+            .ForMember(dest => dest.TotalReviews, opt => opt.MapFrom(src => src.ReviewCount))
+            .ForMember(dest => dest.RelatedProducts, opt => opt.Ignore())
+            .ForMember(dest => dest.Specifications, opt => opt.Ignore());
+
         CreateMap<ProductCreateDto, Product>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
@@ -43,7 +51,7 @@ public class ProductMappingProfile : Profile
 
         // Category mappings
         CreateMap<Category, CategoryDto>();
-        
+
         CreateMap<CategoryCreateDto, Category>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
@@ -69,7 +77,7 @@ public class ProductMappingProfile : Profile
 
         // Review mappings
         CreateMap<ProductReview, ProductReviewDto>();
-        
+
         CreateMap<ProductReviewCreateDto, ProductReview>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
