@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 using ToyStore.EventBus.Abstractions;
 using ToyStore.EventBus.Events;
@@ -11,9 +12,14 @@ using ToyStore.Shared.Models;
 
 namespace ToyStore.OrderService.Controllers;
 
+/// <summary>
+/// Order management controller for ToyStore e-commerce platform
+/// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
+[SwaggerTag("Order management including cart operations, order processing, and order history")]
+[Produces("application/json")]
 public class OrdersController : ControllerBase
 {
     private readonly OrderDbContext _context;
@@ -21,8 +27,8 @@ public class OrdersController : ControllerBase
     private readonly ILogger<OrdersController> _logger;
 
     public OrdersController(
-        OrderDbContext context, 
-        IEventBus eventBus, 
+        OrderDbContext context,
+        IEventBus eventBus,
         ILogger<OrdersController> logger)
     {
         _context = context;
@@ -30,11 +36,30 @@ public class OrdersController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Retrieves a paginated list of user's orders
+    /// </summary>
+    /// <param name="page">Page number for pagination (starts from 1)</param>
+    /// <param name="pageSize">Number of items per page (maximum 50)</param>
+    /// <returns>Paginated list of user orders</returns>
+    /// <response code="200">Returns the paginated order list</response>
+    /// <response code="401">Unauthorized access</response>
+    /// <response code="500">Internal server error</response>
     [HttpGet]
-    public async Task<IActionResult> GetOrders([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    [SwaggerOperation(
+        Summary = "Get user orders with pagination",
+        Description = "Retrieves a paginated list of orders for the authenticated user, ordered by creation date (newest first).",
+        OperationId = "GetOrders",
+        Tags = new[] { "Orders" })]
+    [SwaggerResponse(200, "Successfully retrieved orders", typeof(ApiResponse<PaginatedResponse<OrderDto>>))]
+    [SwaggerResponse(401, "Unauthorized - Missing or invalid token", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "Internal server error", typeof(ApiResponse<object>))]
+    public async Task<IActionResult> GetOrders(
+        [FromQuery, SwaggerParameter("Page number for pagination", Required = false)] int page = 1,
+        [FromQuery, SwaggerParameter("Number of items per page (max 50)", Required = false)] int pageSize = 10)
     {
         var userId = GetUserId();
-        
+
         var query = _context.Orders
             .Include(o => o.Items)
             .Where(o => o.UserId == userId && !o.IsDeleted)
@@ -58,11 +83,29 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<PaginatedResponse<OrderDto>>.SuccessResult(result));
     }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetOrder(Guid id)
+    /// <summary>
+    /// Retrieves detailed information about a specific order
+    /// </summary>
+    /// <param name="id">The unique identifier of the order</param>
+    /// <returns>Detailed order information</returns>
+    /// <response code="200">Order found and returned</response>
+    /// <response code="401">Unauthorized access</response>
+    /// <response code="404">Order not found</response>
+    /// <response code="500">Internal server error</response>
+    [HttpGet("{id:guid}")]
+    [SwaggerOperation(
+        Summary = "Get order details by ID",
+        Description = "Retrieves detailed information about a specific order including items, shipping information, and payment details.",
+        OperationId = "GetOrderById",
+        Tags = new[] { "Orders" })]
+    [SwaggerResponse(200, "Order found successfully", typeof(ApiResponse<OrderDetailDto>))]
+    [SwaggerResponse(401, "Unauthorized - Missing or invalid token", typeof(ApiResponse<object>))]
+    [SwaggerResponse(404, "Order not found", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "Internal server error", typeof(ApiResponse<object>))]
+    public async Task<IActionResult> GetOrder([SwaggerParameter("Order unique identifier", Required = true)] Guid id)
     {
         var userId = GetUserId();
-        
+
         var order = await _context.Orders
             .Include(o => o.Items)
             .FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId && !o.IsDeleted);
@@ -104,8 +147,26 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<OrderDetailDto>.SuccessResult(orderDto));
     }
 
+    /// <summary>
+    /// Creates a new order from the user's cart
+    /// </summary>
+    /// <param name="createOrderDto">Order creation data including payment method and shipping address</param>
+    /// <returns>Created order details</returns>
+    /// <response code="201">Order created successfully</response>
+    /// <response code="400">Invalid order data or empty cart</response>
+    /// <response code="401">Unauthorized access</response>
+    /// <response code="500">Internal server error</response>
     [HttpPost]
-    public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDto createOrderDto)
+    [SwaggerOperation(
+        Summary = "Create a new order",
+        Description = "Creates a new order from the authenticated user's cart items. The cart will be cleared after successful order creation.",
+        OperationId = "CreateOrder",
+        Tags = new[] { "Orders" })]
+    [SwaggerResponse(201, "Order created successfully", typeof(ApiResponse<OrderDto>))]
+    [SwaggerResponse(400, "Invalid order data or empty cart", typeof(ApiResponse<object>))]
+    [SwaggerResponse(401, "Unauthorized - Missing or invalid token", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "Internal server error", typeof(ApiResponse<object>))]
+    public async Task<IActionResult> CreateOrder([FromBody, SwaggerRequestBody("Order creation data", Required = true)] CreateOrderDto createOrderDto)
     {
         var userId = GetUserId();
         var userEmail = GetUserEmail();
@@ -186,7 +247,7 @@ public class OrdersController : ControllerBase
                 ItemCount = order.Items.Count
             };
 
-            return CreatedAtAction(nameof(GetOrder), new { id = order.Id }, 
+            return CreatedAtAction(nameof(GetOrder), new { id = order.Id },
                 ApiResponse<OrderDto>.SuccessResult(orderDto));
         }
         catch (Exception ex)
