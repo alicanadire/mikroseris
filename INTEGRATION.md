@@ -1,347 +1,379 @@
 # 🔗 ToyStore Frontend-Backend Integration Guide
 
-This guide shows how the React frontend integrates with the complete .NET 8 microservices backend.
+This guide explains how the React frontend integrates with the .NET microservices backend.
 
 ## 🏗️ Integration Architecture
 
 ```
-React Frontend (Vite + TypeScript)
-              ↓
-    API Gateway (Port 5000)
-              ↓
-┌─────────────────────────────────────┐
-│        Microservices Backend       │
-├─────────────────────────────────────┤
-│ Identity Service  - Port 5004     │
-│ Product Service   - Port 5001     │
-│ Order Service     - Port 5002     │
-│ User Service      - Port 5003     │
-│ Inventory Service - Port 5005     │
-│ Notification Service - Port 5006  │
-└─────────────────────────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   React SPA     │───▶│  API Gateway    │───▶│  Microservices  │
+│  (Port 3000)    │    │  (Port 5000)    │    │  (Various)      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🚀 Complete Deployment
+## 🔧 Configuration
 
-### 1. Start Backend Services
+### Environment Variables
 
-```bash
-cd backend
-./scripts/deploy.sh
-```
-
-### 2. Start Frontend
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-### 3. Verify Integration
-
-- Frontend: http://localhost:5173
-- Backend API Gateway: http://localhost:5000
-- Backend Health Checks: Check admin panel → System tab
-
-## 🔌 API Integration Points
-
-### Authentication (IdentityServer4)
-
-- **Login Flow**: Username/password → JWT token
-- **Token Storage**: localStorage with expiration check
-- **Authorization**: Bearer token in all API calls
-- **Roles**: Admin vs Customer permissions
-
-### Product Management
-
-- **Get Products**: `GET /api/products` with filtering/pagination
-- **Product Details**: `GET /api/products/{id}`
-- **Categories**: `GET /api/categories`
-- **Featured Products**: `GET /api/products/featured`
-
-### Shopping Cart
-
-- **Get Cart**: `GET /api/cart` (authenticated)
-- **Add to Cart**: `POST /api/cart/add`
-- **Update Item**: `PUT /api/cart/update/{itemId}`
-- **Remove Item**: `DELETE /api/cart/remove/{itemId}`
-
-### Order Processing
-
-- **Create Order**: `POST /api/orders`
-- **Order History**: `GET /api/orders`
-- **Order Details**: `GET /api/orders/{id}`
-
-## 🛠️ Development Setup
-
-### Environment Configuration
-
-Create `.env` file:
+The frontend uses these environment variables (in `.env`):
 
 ```env
+# Backend API endpoints
 VITE_API_GATEWAY_URL=http://localhost:5000/api
 VITE_IDENTITY_SERVER_URL=http://localhost:5004
-VITE_CLIENT_ID=toystore-spa
+
+# Feature flags
+VITE_ENABLE_NOTIFICATIONS=true
+VITE_ENABLE_ANALYTICS=true
+
+# Development settings
+VITE_DEBUG_MODE=false
 ```
 
-### Backend Dependencies
+### API Client Configuration
 
-Ensure these services are running:
+The main API client is in `src/lib/api.ts`:
 
-- SQL Server (Products, Orders, Users, Identity)
-- PostgreSQL (Inventory)
-- MongoDB (Notifications)
-- Redis (Caching)
-- RabbitMQ (Events)
+```typescript
+const API_CONFIG = {
+  GATEWAY: import.meta.env.VITE_API_GATEWAY_URL || "http://localhost:5000/api",
+  IDENTITY_SERVER:
+    import.meta.env.VITE_IDENTITY_SERVER_URL || "http://localhost:5004",
+  TIMEOUT: 30000,
+  RETRY_ATTEMPTS: 3,
+};
+```
 
 ## 🔐 Authentication Flow
 
 ### 1. Login Process
 
 ```typescript
-// User enters credentials
-const user = await ApiClient.login(email, password);
+// Frontend sends credentials to Identity Service
+const response = await ApiClient.login(email, password);
 
-// JWT token stored automatically
-localStorage.setItem("access_token", token);
+// Identity Service returns JWT token
+localStorage.setItem("access_token", response.access_token);
+localStorage.setItem("refresh_token", response.refresh_token);
 
-// User data cached
-localStorage.setItem("user_data", JSON.stringify(user));
+// Subsequent requests include Authorization header
+headers["Authorization"] = `Bearer ${token}`;
 ```
 
-### 2. API Calls with Authentication
+### 2. Token Management
 
 ```typescript
-// Automatic token inclusion
-const headers = {
-  Authorization: `Bearer ${token}`,
-  "Content-Type": "application/json",
-};
-
-// All authenticated endpoints use this header
-```
-
-### 3. Role-Based Access
-
-```typescript
-// Admin-only features
-if (user?.role === "admin") {
-  // Show admin dashboard
-  // Allow product management
-  // Access system status
-}
-```
-
-## 📊 Data Flow Examples
-
-### Product Browsing
-
-```
-User → Frontend → API Gateway → Product Service → SQL Server
-                       ↓
-                  Redis Cache (for performance)
-```
-
-### Shopping Cart
-
-```
-User → Frontend → API Gateway → Order Service → SQL Server
-                                      ↓
-                               RabbitMQ Events
-                                      ↓
-                            Inventory Service (PostgreSQL)
-```
-
-### Order Placement
-
-```
-Order Creation → Order Service (SQL Server)
-                      ↓
-               RabbitMQ Events
-                      ↓
-        ┌─────────────┬──────────────┐
-        ↓             ↓              ↓
-Inventory Update  Email Notification  User Profile
-(PostgreSQL)      (MongoDB)         (SQL Server)
-```
-
-## 🎛️ Admin Dashboard Integration
-
-### System Monitoring
-
-- **Backend Status**: Real-time health checks for all services
-- **Service URLs**: Direct links to Swagger documentation
-- **Database Status**: Connection status for all databases
-
-### Product Management
-
-- **CRUD Operations**: Full product lifecycle management
-- **Image Upload**: Integration with file storage
-- **Category Management**: Hierarchical category structure
-- **Inventory Tracking**: Real-time stock levels
-
-### Order Management
-
-- **Order Processing**: Status updates and tracking
-- **Customer Management**: User profile management
-- **Analytics**: Sales and performance metrics
-
-## 🚨 Error Handling
-
-### API Error Responses
-
-```typescript
-try {
-  const data = await ApiClient.getProducts();
-} catch (error) {
-  if (error.message === "Authentication required") {
-    // Redirect to login
-    navigate("/login");
-  } else {
-    // Show error toast
-    toast.error("Failed to load products");
+// Auto token refresh when expired
+if (response.status === 401) {
+  const refreshed = await this.refreshToken();
+  if (refreshed) {
+    // Retry original request with new token
+    return this.request(config);
   }
 }
 ```
 
-### Backend Service Failures
+## 📡 API Integration Points
 
-- **Graceful Degradation**: Show cached data when possible
-- **User Feedback**: Clear error messages
-- **Retry Logic**: Automatic retry for transient failures
-
-## 🔄 Real-Time Features
-
-### Event-Driven Updates
+### Product Service Integration
 
 ```typescript
-// Stock updates via WebSocket (future enhancement)
-socket.on("stockUpdate", (data) => {
-  updateProductStock(data.productId, data.newStock);
+// Get products with filtering
+static async getProducts(filters?: ProductFilters): Promise<PaginatedResponse<Product>> {
+  const params = new URLSearchParams();
+  if (filters?.category) params.append('category', filters.category);
+  if (filters?.search) params.append('search', filters.search);
+
+  return this.get(`/products?${params}`);
+}
+
+// Get single product with reviews
+static async getProduct(id: string): Promise<Product> {
+  return this.get(`/products/${id}`);
+}
+```
+
+### Order Service Integration
+
+```typescript
+// Add item to cart
+static async addToCart(productId: string, quantity: number): Promise<Cart> {
+  return this.post('/cart/add', { productId, quantity });
+}
+
+// Get user's cart
+static async getCart(): Promise<Cart> {
+  return this.get('/cart');
+}
+
+// Place order
+static async createOrder(orderData: CreateOrderRequest): Promise<Order> {
+  return this.post('/orders', orderData);
+}
+```
+
+### User Service Integration
+
+```typescript
+// Get user profile
+static async getUserProfile(): Promise<User> {
+  return this.get('/users/profile');
+}
+
+// Update profile
+static async updateProfile(data: UpdateProfileRequest): Promise<User> {
+  return this.put('/users/profile', data);
+}
+```
+
+## 🎨 Frontend Components Integration
+
+### Header Component
+
+```typescript
+// Real-time cart count
+const { data: cart } = useQuery({
+  queryKey: ['cart'],
+  queryFn: () => ApiClient.getCart(),
+  enabled: !!user,
 });
 
-// Order status updates
-socket.on("orderStatusChanged", (data) => {
-  updateOrderStatus(data.orderId, data.status);
+// Display cart item count
+<Badge>{cart?.totalItems || 0}</Badge>
+```
+
+### Product Catalog
+
+```typescript
+// Products with pagination and filtering
+const { data: products, isLoading } = useQuery({
+  queryKey: ["products", filters, page],
+  queryFn: () => ApiClient.getProducts({ ...filters, page }),
+});
+
+// Real-time search
+const [searchTerm, setSearchTerm] = useState("");
+const debouncedSearch = useDebounce(searchTerm, 300);
+```
+
+### Shopping Cart
+
+```typescript
+// Add to cart with optimistic updates
+const addToCartMutation = useMutation({
+  mutationFn: ({ productId, quantity }) =>
+    ApiClient.addToCart(productId, quantity),
+  onSuccess: () => {
+    queryClient.invalidateQueries(["cart"]);
+    toast.success("Added to cart!");
+  },
 });
 ```
 
-## 🧪 Testing Integration
+## 🔄 Real-time Updates
 
-### Frontend Testing
+### Using React Query for Cache Management
 
-```bash
-# Test API integration
-npm run test
+```typescript
+// Auto-refresh cart data
+useQuery({
+  queryKey: ["cart"],
+  queryFn: () => ApiClient.getCart(),
+  refetchInterval: 30000, // Refresh every 30 seconds
+  staleTime: 5000,
+});
 
-# Test with real backend
-VITE_API_GATEWAY_URL=http://localhost:5000/api npm run dev
+// Optimistic updates for better UX
+const updateQuantityMutation = useMutation({
+  mutationFn: ({ itemId, quantity }) =>
+    ApiClient.updateCartItem(itemId, quantity),
+  onMutate: async ({ itemId, quantity }) => {
+    // Optimistically update the UI
+    const previousCart = queryClient.getQueryData(["cart"]);
+    queryClient.setQueryData(["cart"], (old) => ({
+      ...old,
+      items: old.items.map((item) =>
+        item.id === itemId ? { ...item, quantity } : item,
+      ),
+    }));
+    return { previousCart };
+  },
+});
 ```
 
-### Backend Testing
+## 📊 Backend Status Monitoring
 
-```bash
-# Health checks
-curl http://localhost:5000/health
-curl http://localhost:5001/health
+### Health Check Integration
 
-# API endpoints
-curl http://localhost:5000/api/products
-curl http://localhost:5000/api/categories
+```typescript
+// Monitor microservices health
+const useBackendStatus = () => {
+  return useQuery({
+    queryKey: ["backend-status"],
+    queryFn: async () => {
+      const services = [
+        { name: "API Gateway", url: "/health" },
+        { name: "Product Service", url: "/products/health" },
+        { name: "Order Service", url: "/orders/health" },
+        { name: "User Service", url: "/users/health" },
+      ];
+
+      const results = await Promise.allSettled(
+        services.map((service) =>
+          fetch(`${API_CONFIG.GATEWAY}${service.url}`).then((res) => ({
+            ...service,
+            status: res.ok ? "healthy" : "unhealthy",
+            responseTime: Date.now() - startTime,
+          })),
+        ),
+      );
+
+      return results.map((result) =>
+        result.status === "fulfilled" ? result.value : null,
+      );
+    },
+    refetchInterval: 10000, // Check every 10 seconds
+  });
+};
 ```
 
-## 📱 Mobile Integration
+## 🛡️ Error Handling
 
-### Responsive Design
+### Global Error Boundary
 
-- **Mobile-First**: Optimized for all screen sizes
-- **Touch-Friendly**: Proper touch targets and gestures
-- **Performance**: Optimized API calls and caching
+```typescript
+// Automatic retry with exponential backoff
+const apiRequest = async (config, retryCount = 0) => {
+  try {
+    return await fetch(config);
+  } catch (error) {
+    if (retryCount < API_CONFIG.RETRY_ATTEMPTS) {
+      const delay = Math.pow(2, retryCount) * 1000;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return apiRequest(config, retryCount + 1);
+    }
+    throw error;
+  }
+};
 
-### PWA Features (Future)
-
-- **Offline Support**: Cache critical data
-- **Push Notifications**: Order updates and promotions
-- **App-Like Experience**: Install as mobile app
-
-## 🚀 Production Deployment
-
-### Frontend Build
-
-```bash
-npm run build
-# Generates optimized static files
+// User-friendly error messages
+const getErrorMessage = (error) => {
+  if (error.status === 404) return "Item not found";
+  if (error.status === 401) return "Please log in again";
+  if (error.status >= 500) return "Server error, please try again";
+  return error.message || "Something went wrong";
+};
 ```
 
-### Environment Variables
-
-```env
-# Production
-VITE_API_GATEWAY_URL=https://api.toystore.com/api
-VITE_IDENTITY_SERVER_URL=https://identity.toystore.com
-```
-
-### CDN Integration
-
-- Static assets served from CDN
-- API calls to production backend
-- SSL/HTTPS encryption
-
-## 📈 Performance Optimization
+## 🚀 Performance Optimizations
 
 ### Caching Strategy
 
-- **Redis**: Backend caching for frequently accessed data
-- **Browser Cache**: Static assets and API responses
-- **Service Worker**: Future PWA caching
+```typescript
+// Aggressive caching for product data
+useQuery({
+  queryKey: ["product", productId],
+  queryFn: () => ApiClient.getProduct(productId),
+  staleTime: 5 * 60 * 1000, // 5 minutes
+  cacheTime: 30 * 60 * 1000, // 30 minutes
+});
 
-### Code Splitting
-
-- **Route-Based**: Lazy load pages
-- **Component-Based**: Split large components
-- **Vendor Splitting**: Separate vendor bundles
-
-## 🤝 Team Development
-
-### Frontend Developers
-
-```bash
-# Work with mock data
-npm run dev:mock
-
-# Work with real backend
-npm run dev:integrated
+// Background updates for fresh data
+useQuery({
+  queryKey: ["products"],
+  queryFn: () => ApiClient.getProducts(),
+  refetchOnWindowFocus: false,
+  refetchOnMount: false,
+  staleTime: 2 * 60 * 1000,
+});
 ```
 
-### Backend Developers
+### Lazy Loading
 
-```bash
-# API documentation
-http://localhost:5001/swagger
-http://localhost:5002/swagger
+```typescript
+// Code splitting for better performance
+const AdminPanel = lazy(() => import('./pages/Admin'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 
-# Test endpoints
-curl -X POST http://localhost:5000/api/products \
-  -H "Authorization: Bearer {token}" \
-  -d '{product-data}'
+// Image lazy loading
+<img
+  src={product.imageUrl}
+  loading="lazy"
+  alt={product.name}
+/>
 ```
 
----
+## 🔧 Development Tips
 
-## ✅ Integration Checklist
+### Hot Reload Setup
 
-- ✅ **Backend Services Running**: All 7 microservices operational
-- ✅ **API Gateway**: Centralized routing working
-- ✅ **Authentication**: IdentityServer4 integration complete
-- ✅ **Database Connectivity**: All 3 database types connected
-- ✅ **Message Queuing**: RabbitMQ events flowing
-- ✅ **Caching**: Redis performance optimization active
-- ✅ **Frontend Integration**: All API endpoints connected
-- ✅ **Error Handling**: Graceful error management
-- ✅ **Admin Dashboard**: Full management capabilities
-- ✅ **Real-Time Updates**: Event-driven architecture
+```typescript
+// Vite proxy for backend requests (vite.config.ts)
+export default defineConfig({
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
 
-**Your ToyStore application is fully integrated and production-ready! 🎉**
+### Mock Data for Development
+
+```typescript
+// Fallback to mock data when backend is unavailable
+const ApiClient = {
+  async getProducts() {
+    try {
+      return await this.request("/products");
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        return MOCK_PRODUCTS; // Fallback for development
+      }
+      throw error;
+    }
+  },
+};
+```
+
+## 📱 Mobile Responsiveness
+
+The frontend is fully responsive and works seamlessly with the backend APIs on all devices:
+
+- **Mobile-first design** with Tailwind CSS
+- **Touch-friendly** cart and navigation
+- **Optimized images** for mobile bandwidth
+- **Progressive Web App** features ready
+
+## 🎯 Production Deployment
+
+### Environment Configuration
+
+```bash
+# Production environment variables
+VITE_API_GATEWAY_URL=https://api.toystore.com/api
+VITE_IDENTITY_SERVER_URL=https://auth.toystore.com
+VITE_ENABLE_ANALYTICS=true
+```
+
+### Docker Integration
+
+```dockerfile
+# Frontend Dockerfile
+FROM node:18-alpine as builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+```
+
+This integration ensures a seamless, production-ready e-commerce experience with real-time updates, robust error handling, and optimal performance.
