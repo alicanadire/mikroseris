@@ -87,41 +87,32 @@ services:
       timeout: 5s
       retries: 5
 
-  # API Gateway
-  api-gateway:
-    build:
-      context: ./src/ApiGateway/ToyStore.ApiGateway
-      dockerfile: Dockerfile
-    container_name: toystore-api-gateway
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:80
+  # Adminer - Database admin tool
+  adminer:
+    image: adminer:4.8.1
+    container_name: toystore-adminer
     ports:
-      - "5000:80"
-    depends_on:
-      - sqlserver
-      - redis
+      - "8080:8080"
     networks:
       - toystore-network
     restart: unless-stopped
+    depends_on:
+      - sqlserver
+      - postgresql
 
-  # Identity Service
-  identity-service:
-    build:
-      context: ./src/Services/Identity/ToyStore.IdentityService
-      dockerfile: Dockerfile
-    container_name: toystore-identity-service
+  # Redis Admin - Redis management tool
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: toystore-redis-admin
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ToyStoreIdentity;User Id=sa;Password=ToyStore123!;TrustServerCertificate=true;
+      - REDIS_HOSTS=redis:redis:6379:0:ToyStore123!
     ports:
-      - "5004:80"
-    depends_on:
-      - sqlserver
+      - "8081:8081"
     networks:
       - toystore-network
     restart: unless-stopped
+    depends_on:
+      - redis
 
 volumes:
   sqlserver_data:
