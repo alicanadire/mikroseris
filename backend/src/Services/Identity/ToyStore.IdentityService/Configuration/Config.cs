@@ -1,5 +1,5 @@
-using IdentityServer4;
-using IdentityServer4.Models;
+using Duende.IdentityServer;
+using Duende.IdentityServer.Models;
 
 namespace ToyStore.IdentityService.Configuration;
 
@@ -59,25 +59,25 @@ public static class Config
                 RequireClientSecret = false,
                 RequirePkce = true,
                 AllowOfflineAccess = true,
-                
-                RedirectUris = 
+
+                RedirectUris =
                 {
                     "http://localhost:3000/auth/callback",
                     "http://localhost:5173/auth/callback"
                 },
-                
-                PostLogoutRedirectUris = 
+
+                PostLogoutRedirectUris =
                 {
                     "http://localhost:3000",
                     "http://localhost:5173"
                 },
-                
-                AllowedCorsOrigins = 
+
+                AllowedCorsOrigins =
                 {
                     "http://localhost:3000",
                     "http://localhost:5173"
                 },
-                
+
                 AllowedScopes =
                 {
                     IdentityServerConstants.StandardScopes.OpenId,
@@ -90,11 +90,11 @@ public static class Config
                     "toystore.inventory",
                     "toystore.notifications"
                 },
-                
+
                 AccessTokenLifetime = 3600,
                 RefreshTokenUsage = TokenUsage.ReUse
             },
-            
+
             // Admin Dashboard Client
             new Client
             {
@@ -104,22 +104,22 @@ public static class Config
                 RequireClientSecret = false,
                 RequirePkce = true,
                 AllowOfflineAccess = true,
-                
-                RedirectUris = 
+
+                RedirectUris =
                 {
                     "http://localhost:3001/auth/callback"
                 },
-                
-                PostLogoutRedirectUris = 
+
+                PostLogoutRedirectUris =
                 {
                     "http://localhost:3001"
                 },
-                
-                AllowedCorsOrigins = 
+
+                AllowedCorsOrigins =
                 {
                     "http://localhost:3001"
                 },
-                
+
                 AllowedScopes =
                 {
                     IdentityServerConstants.StandardScopes.OpenId,
@@ -133,11 +133,11 @@ public static class Config
                     "toystore.inventory",
                     "toystore.notifications"
                 },
-                
+
                 AccessTokenLifetime = 3600,
                 RefreshTokenUsage = TokenUsage.ReUse
             },
-            
+
             // Machine to Machine Client for microservices
             new Client
             {
@@ -145,7 +145,7 @@ public static class Config
                 ClientName = "ToyStore Machine to Machine",
                 AllowedGrantTypes = GrantTypes.ClientCredentials,
                 ClientSecrets = { new Secret("toystore-secret".Sha256()) },
-                
+
                 AllowedScopes =
                 {
                     "toystore.products",

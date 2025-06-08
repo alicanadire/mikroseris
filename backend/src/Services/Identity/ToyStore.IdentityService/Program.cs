@@ -1,13 +1,17 @@
 using System.Reflection;
-using IdentityServer4.EntityFramework.DbContexts;
-using IdentityServer4.EntityFramework.Mappers;
+using Duende.IdentityServer.EntityFramework.DbContexts;
+using Duende.IdentityServer.EntityFramework.Mappers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using StackExchange.Redis;
+using ToyStore.EventBus.Abstractions;
+using ToyStore.EventBus.RabbitMQ;
 using ToyStore.IdentityService;
 using ToyStore.IdentityService.Configuration;
 using ToyStore.IdentityService.Data;
 using ToyStore.IdentityService.Models;
+using ToyStore.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +28,25 @@ var migrationsAssembly = typeof(Program).GetTypeInfo().Assembly.GetName().Name;
 // Add services to the container
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+// Redis Configuration
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("Redis")
+        ?? "localhost:6379";
+    return ConnectionMultiplexer.Connect(connectionString);
+});
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+
+// RabbitMQ EventBus Configuration
+builder.Services.Configure<RabbitMQSettings>(options =>
+{
+    options.ConnectionString = builder.Configuration.GetConnectionString("RabbitMQ")
+        ?? "amqp://guest:guest@localhost:5672/";
+    options.ExchangeName = "toystore_eventbus";
+    options.QueueName = "identity_service_queue";
+});
+builder.Services.AddSingleton<IEventBus, RabbitMQEventBus>();
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
