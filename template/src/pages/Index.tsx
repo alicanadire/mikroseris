@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Heart,
   Gift,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,160 +22,87 @@ import {
 } from "@/components/ui/carousel";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import ProductCard from "@/components/ProductCard";
-import { Product, Category } from "@/types";
-import ApiClient from "@/lib/api";
 
 const Index = () => {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [featuredProducts, setFeaturedProducts] = useState([
+    {
+      id: "1",
+      name: "Super Hero Action Figure",
+      description: "Amazing superhero figure with movable joints",
+      price: 24.99,
+      imageUrls: ["/images/products/action-figure-1.jpg"],
+      category: { name: "Action Figures" },
+      brand: "ToyStore",
+      ageRange: "4+",
+      rating: 4.5,
+      reviewCount: 128,
+    },
+    {
+      id: "2",
+      name: "Building Blocks Set",
+      description: "Creative building blocks for endless fun",
+      price: 39.99,
+      imageUrls: ["/images/products/blocks-1.jpg"],
+      category: { name: "Building Blocks" },
+      brand: "ToyStore",
+      ageRange: "3+",
+      rating: 4.8,
+      reviewCount: 95,
+    },
+    {
+      id: "3",
+      name: "STEM Learning Kit",
+      description: "Educational toy for science and math learning",
+      price: 49.99,
+      imageUrls: ["/images/products/stem-kit-1.jpg"],
+      category: { name: "Educational" },
+      brand: "ToyStore",
+      ageRange: "6+",
+      rating: 4.7,
+      reviewCount: 67,
+    },
+    {
+      id: "4",
+      name: "Puzzle Adventure",
+      description: "Challenging puzzle for problem-solving fun",
+      price: 19.99,
+      imageUrls: ["/images/products/puzzle-1.jpg"],
+      category: { name: "Educational" },
+      brand: "ToyStore",
+      ageRange: "5+",
+      rating: 4.6,
+      reviewCount: 89,
+    },
+  ]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    // Set immediate fallback data for fast loading
-    const fallbackCategories = [
-      {
-        id: "1",
-        name: "Action Figures",
-        slug: "action-figures",
-        description: "Superhero and character action figures",
-        imageUrl: "/images/categories/action-figures.jpg",
-        sortOrder: 1,
-        isActive: true,
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "2",
-        name: "Building Blocks",
-        slug: "building-blocks",
-        description: "LEGO and other building sets",
-        imageUrl: "/images/categories/building-blocks.jpg",
-        sortOrder: 2,
-        isActive: true,
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "3",
-        name: "Educational Toys",
-        slug: "educational-toys",
-        description: "Learning and STEM toys",
-        imageUrl: "/images/categories/educational.jpg",
-        sortOrder: 3,
-        isActive: true,
-        createdAt: "",
-        updatedAt: "",
-      },
-    ];
-
-    const fallbackProducts = [
-      {
-        id: "1",
-        name: "Super Hero Action Figure",
-        description: "Amazing superhero figure with movable joints",
-        shortDescription: "Amazing superhero figure",
-        price: 24.99,
-        imageUrls: ["/images/products/action-figure-1.jpg"],
-        category: fallbackCategories[0],
-        brand: "ToyStore",
-        ageRange: "4+",
-        inStock: true,
-        stockQuantity: 50,
-        rating: 4.5,
-        reviewCount: 128,
-        tags: ["superhero", "action"],
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "2",
-        name: "Building Blocks Set",
-        description: "Creative building blocks for endless fun",
-        shortDescription: "Creative building blocks",
-        price: 39.99,
-        imageUrls: ["/images/products/blocks-1.jpg"],
-        category: fallbackCategories[1],
-        brand: "ToyStore",
-        ageRange: "3+",
-        inStock: true,
-        stockQuantity: 30,
-        rating: 4.8,
-        reviewCount: 95,
-        tags: ["building", "creative"],
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "3",
-        name: "STEM Learning Kit",
-        description: "Educational toy for science and math learning",
-        shortDescription: "Educational STEM kit",
-        price: 49.99,
-        imageUrls: ["/images/products/stem-kit-1.jpg"],
-        category: fallbackCategories[2],
-        brand: "ToyStore",
-        ageRange: "6+",
-        inStock: true,
-        stockQuantity: 25,
-        rating: 4.7,
-        reviewCount: 67,
-        tags: ["educational", "STEM"],
-        createdAt: "",
-        updatedAt: "",
-      },
-      {
-        id: "4",
-        name: "Puzzle Adventure",
-        description: "Challenging puzzle for problem-solving fun",
-        shortDescription: "Challenging puzzle game",
-        price: 19.99,
-        imageUrls: ["/images/products/puzzle-1.jpg"],
-        category: fallbackCategories[2],
-        brand: "ToyStore",
-        ageRange: "5+",
-        inStock: true,
-        stockQuantity: 40,
-        rating: 4.6,
-        reviewCount: 89,
-        tags: ["puzzle", "brain"],
-        createdAt: "",
-        updatedAt: "",
-      },
-    ];
-
-    // Set fallback data immediately for fast UI
-    setCategories(fallbackCategories);
-    setFeaturedProducts(fallbackProducts);
-    setLoading(false);
-
-    // Try to load real data in background
-    try {
-      const [productsData, categoriesData] = await Promise.all([
-        ApiClient.getFeaturedProducts(),
-        ApiClient.getCategories(),
-      ]);
-
-      setFeaturedProducts(productsData);
-      setCategories(categoriesData);
-    } catch (error) {
-      console.warn("Backend not available, using fallback data:", error);
-      // Fallback data is already set, so no need to do anything
-    }
-  };
+  const categories = [
+    {
+      id: "1",
+      name: "Action Figures",
+      description: "Superhero and character action figures",
+      slug: "action-figures",
+    },
+    {
+      id: "2",
+      name: "Building Blocks",
+      description: "LEGO and other building sets",
+      slug: "building-blocks",
+    },
+    {
+      id: "3",
+      name: "Educational Toys",
+      description: "Learning and STEM toys",
+      slug: "educational-toys",
+    },
+  ];
 
   const heroSlides = [
     {
-      title: "New STEM Toys Collection",
-      subtitle: "Spark curiosity and learning with our latest educational toys",
-      cta: "Shop STEM Toys",
-      link: "/products?category=educational-toys",
+      title: "Welcome to ToyStore!",
+      subtitle: "Discover amazing toys that inspire creativity and learning",
+      cta: "Shop Now",
+      link: "/products",
       bgColor: "from-blue-600 to-purple-600",
-      image: "/images/hero/stem-toys.jpg",
     },
     {
       title: "Action Heroes Assemble!",
@@ -182,7 +110,6 @@ const Index = () => {
       cta: "Shop Action Figures",
       link: "/products?category=action-figures",
       bgColor: "from-red-600 to-orange-600",
-      image: "/images/hero/action-figures.jpg",
     },
     {
       title: "Creative Building Adventures",
@@ -190,7 +117,6 @@ const Index = () => {
       cta: "Shop Building Sets",
       link: "/products?category=building-blocks",
       bgColor: "from-green-600 to-teal-600",
-      image: "/images/hero/building-blocks.jpg",
     },
   ];
 
@@ -220,17 +146,6 @@ const Index = () => {
       color: "text-red-600",
     },
   ];
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading awesome toys...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -373,7 +288,60 @@ const Index = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <Card
+                key={product.id}
+                className="group hover:shadow-lg transition-shadow"
+              >
+                <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <Gift className="w-20 h-20 text-gray-400" />
+                </div>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {product.category.name}
+                    </Badge>
+                    <span className="text-xs text-gray-500">
+                      {product.ageRange}
+                    </span>
+                  </div>
+
+                  <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
+                    {product.name}
+                  </h3>
+
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                    {product.description}
+                  </p>
+
+                  <div className="flex items-center gap-1 mb-3">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < Math.floor(product.rating)
+                              ? "text-yellow-400 fill-current"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      {product.rating} ({product.reviewCount})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-bold text-gray-900">
+                      ${product.price}
+                    </span>
+                    <Button size="sm" className="flex items-center gap-1">
+                      <ShoppingCart className="w-4 h-4" />
+                      Add to Cart
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
