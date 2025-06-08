@@ -42,7 +42,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Add health checks
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddMongoDb(builder.Configuration.GetConnectionString("MongoDBConnection") 
+        ?? "mongodb://admin:ToyStore123!@localhost:27017");
 
 var app = builder.Build();
 
@@ -57,5 +59,23 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// Initialize MongoDB collections
+using (var scope = app.Services.CreateScope())
+{
+    var database = scope.ServiceProvider.GetService<IMongoDatabase>();
+    if (database != null)
+    {
+        // Ensure collections exist
+        var notificationsCollection = database.GetCollection<BsonDocument>("notifications");
+        var templatesCollection = database.GetCollection<BsonDocument>("templates");
+        
+        // Create indexes
+        var notificationIndexKeys = Builders<BsonDocument>.IndexKeys
+            .Ascending("recipient")
+            .Ascending("createdAt");
+        notificationsCollection.Indexes.CreateOne(new CreateIndexModel<BsonDocument>(notificationIndexKeys));
+    }
+}
 
 app.Run();
