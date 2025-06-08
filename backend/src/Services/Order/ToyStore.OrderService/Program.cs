@@ -34,7 +34,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // Add health checks
 builder.Services.AddHealthChecks()
-    .AddDbContext<OrderDbContext>();
+    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!);
 
 var app = builder.Build();
 
