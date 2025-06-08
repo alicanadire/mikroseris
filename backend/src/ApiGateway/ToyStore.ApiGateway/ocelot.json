@@ -1,7 +1,7 @@
 {
   "Routes": [
     {
-      "DownstreamPathTemplate": "/api/products",
+      "DownstreamPathTemplate": "/api/v1/products",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -9,7 +9,7 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/products",
+      "UpstreamPathTemplate": "/api/v1/products",
       "UpstreamHttpMethod": ["GET", "POST"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
@@ -21,7 +21,7 @@
       }
     },
     {
-      "DownstreamPathTemplate": "/api/products/{id}",
+      "DownstreamPathTemplate": "/api/v1/products/{id}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -29,7 +29,7 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/products/{id}",
+      "UpstreamPathTemplate": "/api/v1/products/{id}",
       "UpstreamHttpMethod": ["GET", "PUT", "DELETE"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
@@ -37,7 +37,7 @@
       }
     },
     {
-      "DownstreamPathTemplate": "/api/categories",
+      "DownstreamPathTemplate": "/api/v1/products/featured",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -45,16 +45,16 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/categories",
-      "UpstreamHttpMethod": ["GET", "POST"],
+      "UpstreamPathTemplate": "/api/v1/products/featured",
+      "UpstreamHttpMethod": ["GET"],
       "FileCacheOptions": {
         "TtlSeconds": 60,
-        "Region": "categories"
+        "Region": "products"
       }
     },
 
     {
-      "DownstreamPathTemplate": "/api/orders",
+      "DownstreamPathTemplate": "/api/v1/orders",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -62,7 +62,7 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/orders",
+      "UpstreamPathTemplate": "/api/v1/orders",
       "UpstreamHttpMethod": ["GET", "POST"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
@@ -70,7 +70,7 @@
       }
     },
     {
-      "DownstreamPathTemplate": "/api/orders/{id}",
+      "DownstreamPathTemplate": "/api/v1/orders/{id}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -78,7 +78,7 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/orders/{id}",
+      "UpstreamPathTemplate": "/api/v1/orders/{id}",
       "UpstreamHttpMethod": ["GET", "PUT", "DELETE"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
@@ -86,7 +86,7 @@
       }
     },
     {
-      "DownstreamPathTemplate": "/api/cart",
+      "DownstreamPathTemplate": "/api/v1/cart",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -94,7 +94,7 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/cart",
+      "UpstreamPathTemplate": "/api/v1/cart",
       "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
@@ -103,7 +103,7 @@
     },
 
     {
-      "DownstreamPathTemplate": "/api/users",
+      "DownstreamPathTemplate": "/api/v1/users/profile",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -111,7 +111,23 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/users",
+      "UpstreamPathTemplate": "/api/v1/users/profile",
+      "UpstreamHttpMethod": ["GET", "PUT"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/users/addresses",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "userservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/users/addresses",
       "UpstreamHttpMethod": ["GET", "POST"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
@@ -119,7 +135,7 @@
       }
     },
     {
-      "DownstreamPathTemplate": "/api/users/{id}",
+      "DownstreamPathTemplate": "/api/v1/users/addresses/{id}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -127,8 +143,24 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/users/{id}",
-      "UpstreamHttpMethod": ["GET", "PUT", "DELETE"],
+      "UpstreamPathTemplate": "/api/v1/users/addresses/{id}",
+      "UpstreamHttpMethod": ["PUT", "DELETE"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/users/stats",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "userservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/users/stats",
+      "UpstreamHttpMethod": ["GET"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
@@ -136,7 +168,7 @@
     },
 
     {
-      "DownstreamPathTemplate": "/api/inventory",
+      "DownstreamPathTemplate": "/api/v1/inventory",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -144,8 +176,72 @@
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/inventory",
-      "UpstreamHttpMethod": ["GET", "POST", "PUT"],
+      "UpstreamPathTemplate": "/api/v1/inventory",
+      "UpstreamHttpMethod": ["GET", "POST"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/inventory/{productId}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventoryservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/inventory/{productId}",
+      "UpstreamHttpMethod": ["GET", "PUT"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/inventory/reserve",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventoryservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/inventory/reserve",
+      "UpstreamHttpMethod": ["POST"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/inventory/low-stock",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventoryservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/inventory/low-stock",
+      "UpstreamHttpMethod": ["GET"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/inventory/{productId}/movements",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventoryservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/inventory/{productId}/movements",
+      "UpstreamHttpMethod": ["GET"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
@@ -153,27 +249,160 @@
     },
 
     {
-      "DownstreamPathTemplate": "/api/notifications",
+      "DownstreamPathTemplate": "/api/v1/account/register",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "notificationservice",
+          "Host": "identityservice",
           "Port": 80
         }
       ],
-      "UpstreamPathTemplate": "/api/notifications",
+      "UpstreamPathTemplate": "/api/v1/account/register",
+      "UpstreamHttpMethod": ["POST"]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/account/login",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identityservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/account/login",
+      "UpstreamHttpMethod": ["POST"]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/account/logout",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identityservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/account/logout",
+      "UpstreamHttpMethod": ["POST"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/account/me",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identityservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/account/me",
+      "UpstreamHttpMethod": ["GET"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/account/change-password",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identityservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/account/change-password",
+      "UpstreamHttpMethod": ["POST"],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/roles",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identityservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/api/v1/roles",
       "UpstreamHttpMethod": ["GET", "POST"],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
       }
+    },
+
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "productservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/health/products",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "orderservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/health/orders",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "userservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/health/users",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventoryservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/health/inventory",
+      "UpstreamHttpMethod": ["GET"]
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identityservice",
+          "Port": 80
+        }
+      ],
+      "UpstreamPathTemplate": "/health/identity",
+      "UpstreamHttpMethod": ["GET"]
     }
   ],
   "GlobalConfiguration": {
     "BaseUrl": "http://localhost:5000",
     "RateLimitOptions": {
       "DisableRateLimitHeaders": false,
-      "QuotaExceededMessage": "Rate limit exceeded",
+      "QuotaExceededMessage": "Rate limit exceeded. Please try again later.",
       "HttpStatusCode": 429,
       "ClientIdHeader": "ClientId"
     },
@@ -181,6 +410,9 @@
       "ExceptionsAllowedBeforeBreaking": 3,
       "DurationOfBreak": 5000,
       "TimeoutValue": 10000
+    },
+    "ServiceDiscoveryProvider": {
+      "Type": "ServiceFabric"
     }
   }
 }
